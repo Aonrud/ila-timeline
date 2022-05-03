@@ -165,7 +165,7 @@ The simplest usage is to instantiate a new Timeline object, and then call the cr
 | [config.guideInterval] | <code>number</code> | <code>5</code> | the interval in years between guides (ignored if 'guides' is false) |
 | [config.entrySelector] | <code>string</code> | <code>&quot;div&quot;</code> | the CSS selector used for entries |
 | [config.linkDashes] | <code>string</code> | <code>4</code> | The svg dasharray for link lines. (Must be a valid dasharray - see <https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/stroke-dasharray>) |
-| [config.irregularDashes] | <code>string</code> | <code>20 2</code> |  The svg dasharray for entries marked as 'irregular' with the data-irregular attribute. (Must be a valid dasharray - see <https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/stroke-dasharray>) |
+| [config.irregularDashes] | <code>string</code> | <code>88 4 4 4</code> |  The svg dasharray for entries marked as 'irregular' with the data-irregular attribute. (Must be a valid dasharray - see <https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/stroke-dasharray>) |
 
 <a name="Timeline+create"></a>
 

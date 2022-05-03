@@ -64,27 +64,25 @@ class SvgConnector {
 		const xpos = Math.min(start.x,end.x) - offset;
 		const ypos = Math.min(start.y,end.y) - offset;
 		
-		const svg = document.createElementNS(svgns, "svg");
+		let svg = document.createElementNS(svgns, "svg");
 		svg.setAttribute("width", Math.abs(xDisplacement) + offset*2);
 		svg.setAttribute("height", Math.abs(yDisplacement) + offset*2);
 		svg.setAttribute("style", "position: absolute; left: " + xpos + "px; top: " + ypos + "px");
 
 		const line = this.drawLine(coords, colour, stroke, dashes, title);
 		//debugging
-		line.setAttribute("data-coords", `[ ${start.x}, ${start.y}], [ ${end.x}, ${end.y} ]`);
+		line.setAttribute("data-coords", `[ ${start.x}, ${start.y} ], [ ${end.x}, ${end.y} ]`);
 		svg.append(line);
 		
-		const markerStart = this._drawMarker(markers[0], "start", coords, stroke, colour);
-		if (markerStart) svg.append(markerStart);
-		
-		const markerEnd = this._drawMarker(markers[1], "end", coords, stroke, colour);
-		if (markerEnd) svg.append(markerEnd);
+		svg = this._addMarker(svg, markers[0], "start", coords, stroke, colour);
+		svg = this._addMarker(svg, markers[1], "end", coords, stroke, colour);
 
 		return svg;
 	}
 	
 	/**
-	 * Draw a marker at the end of the line specified.
+	 * Add a marker to the svg provided at the end specified.
+	 * @param {object} svg
 	 * @param {string} type
 	 * @param {string} pos
 	 * @param {object} coords
@@ -92,11 +90,14 @@ class SvgConnector {
 	 * @param {string} colour
 	 * @return {object|null}
 	 */
-	static _drawMarker(type, pos, coords, stroke, colour) {
-		if (type == "circle") return this._drawCircleMarker(pos, coords, stroke, colour);
-		if (type == "square") return this._drawSquareMarker(pos, coords, stroke, colour);
-		if (type == "dots" && pos == "end") return this._drawDotsEnd(coords, stroke, colour);
-		return;
+	static _addMarker(svg, type, pos, coords, stroke, colour) {
+		if (type == "circle") svg.append(this._drawCircleMarker(pos, coords, stroke, colour));
+		if (type == "square") svg.append(this._drawSquareMarker(pos, coords, stroke, colour));
+		if (type == "dots" && pos == "end") {
+			svg.setAttribute("width", parseInt(svg.getAttribute("width")) + stroke*2);
+			svg.append(this._drawDotsEnd(coords, stroke, colour));
+		}
+		return svg;
 	}
 	
 	/**
@@ -139,10 +140,10 @@ class SvgConnector {
 		
 		let x2 = coords.x2;
 		if (coords.x2 < coords.x1) {
-			x2 = coords.x2 - stroke*2;
+			x2 = coords.x2 - stroke*5;
 		}
 		if (coords.x2 > coords.x1) {
-			x2 = coords.x2 + stroke*2;
+			x2 = coords.x2 + stroke*5;
 		}
 		
 		let y2 = coords.y2;
@@ -159,7 +160,7 @@ class SvgConnector {
 			x2: x2,
 			y2: y2
 		}
-		return this.drawLine(dotCoords, colour, stroke*2, "2 2");
+		return this.drawLine(dotCoords, colour, stroke, `0 ${stroke} ${stroke} ${stroke} ${stroke}`);
 	}
 	
 	/**

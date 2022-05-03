@@ -18,7 +18,7 @@ const defaultDiagramConfig = {
 	guideInterval: 5,
 	entrySelector: "div",
 	linkDashes: "4",
-	irregularDashes: "20 2"
+	irregularDashes: "88 4 4 4"
 }
 
 /**
