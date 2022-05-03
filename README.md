@@ -11,7 +11,7 @@ To use the timeline:
 
 * Include timeline.min.js and timeline.min.css in your document.
 * Add a div with ID "diagram" to your HTML.
-* Add your timeline entries as `<div>` elements within div#diagram, with the appropriate `data-` attributes (see **HTML data attributes** below).
+* Add your timeline entries as `<div>` elements within div#diagram, with the appropriate `data-` attributes (see [HTML data attributes](#html-attrib) below).
 * Instantiate a new Timeline in JS, and call the create() method on it.
 
 Simple example including some configuration options, and a mixture of automatic and manual row positioning:
@@ -49,6 +49,8 @@ Javascript modules
 
 The script is bundled as an ES6 module (dist/timeline.esm.js) or a UMD (dist/timeline.min.js), depending on your prefered development stack/build tools.
 
+<a name="html-attrib" />
+
 HTML data attributes
 ---
 
@@ -74,6 +76,19 @@ The following data attributes then determine the position and connections of the
 
 
 <a name="panzoom" />
+
+CSS Helper Classes
+---
+
+These CSS helper classes are provided:
+
+**`timeline-exclude`**
+
+Adding this class to an element that would otherwise be treated as an entry in the timeline will exclude it from the list of entries, allowing it to be treated as a standard HTML element.  For example, a `<div>` can be used to show a legend within the timeline diagram.
+
+**`timeline-block`**
+
+An element with this class, in conjunction with the correct data attributes can be used to block a particular space in the timeline and prevent the automatic positioning putting entries in that space. (see [Entry Positioning](#entry-positioning) below).
 
 Panning and Zooming
 ---
@@ -215,6 +230,25 @@ The row is determined in source-code order for each entry if it is omitted. A ro
 * Connected entries (via 'data-becomes' attribute) must be on the same row.
 * Split, merge, and fork entries should aim to be as close to their linked entries as possible, depending on nearest available row with space.
 
+**Manual Adjustments**
+
+Two methods can be used to manually change the entry positioning when using this feature:
+
+**`data-row`**
+
+The row position can be manually set with the `data-row` attribute for a selection of entries, allowing others to be manually positioned in available spaces.
+
+**`timeline-block`**
+
+The `timeline-block` class can be added to an element to prevent entries from filling a particular area.
+
+These elements must specify a `data-start` and `data-end` attribute to determine the X-axis range of the block.
+
+The Y-axis can be set in two ways:
+
+1. Manually, by setting the `data-row` attribute
+2. Automatically, by setting the `data-find` attribute with the ID of an entry.  In this instance, it will block the same row as the entry with that ID for the range specified.
+	
 Licence
 ---
 

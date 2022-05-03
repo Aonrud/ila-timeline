@@ -266,14 +266,13 @@ class SvgConnector {
 		const t = document.createElementNS(svgns, "title");
 		t.append(document.createTextNode(title));
 		t.dataset.title = title;
-		console.log(title);
 		return t;
 	}
 }
 
 /**
  * Calculates an available position for diagram entries which have not had their row (Y-axis position) set manually.
- * This is fairly rudamentary - a row with sufficient empty space for each entry (and any it joins directly with) will be calculated.
+ * This is fairly rudimentary - a row with sufficient empty space for each entry (and any it joins directly with) will be calculated.
  * If the entry splits from, merges with, or forks into other entries, the nearest row to those entries will be sought.
  * This is most effectively used in a hybrid form, using some manual positioning, allowing simpler cases to be positioned automatically.
  */
@@ -291,10 +290,52 @@ class DiagramPositioner {
 	}
 	
 	/**
+	 * Apply blocks that are manually specified.
+	 * Note: Blocks targeted at specific elements can also be set. These are handled in setEntryRow() when positioning the targeted entry.
+	 * @public
+	 * @param {Nodelist} blocks
+	 */
+	applyBlocks(blocks) {
+		for (const block of blocks) {
+			if (block.dataset.hasOwnProperty("row") && 
+				block.dataset.hasOwnProperty("start") &&
+				block.dataset.hasOwnProperty("end"))
+			{
+				try {
+					this._blockGridSpace(block.dataset.row, this._yearToGrid(block.dataset.start), this._yearToGrid(block.dataset.end));
+				} catch(e) {
+					console.log(`${e}: called for ${entry.id} with row ${row}`);
+				}
+			}
+		}
+	}
+	
+	/** Set the row for all entries, and return the row total
+	 * @public
+	 * @param Nodelist entries
+	 * @return Int
+	 */
+	setRows(entries) {
+		const manual = [...entries].filter(e => e.dataset.hasOwnProperty("row"));
+		const auto = [...entries].filter(e => !e.dataset.hasOwnProperty("row"));
+		
+		for (const entry of manual) {
+			this._setEntryRow(entry);
+		}
+		
+		for (const entry of auto) {
+			this._setEntryRow(entry);
+		}
+		
+		return this.rows;
+	}
+		
+	/**
 	 * Set the row for the provided entry.
+	 * @protected
 	 * @param {HTMLElement} entry
 	 */
-	setEntryRow(entry) {
+	_setEntryRow(entry) {
 		const start = this._yearToGrid(entry.dataset.start);
 		const end = this._yearToGrid(this._calcGroupEnd(entry));
 		let seek = null, seek2 = null, near = null;
@@ -318,7 +359,7 @@ class DiagramPositioner {
 		
 		if (seek && near === null) {
 			if (!seek.dataset.row) {
-				this.setEntryRow(seek);
+				this._setEntryRow(seek);
 			}
 			near = parseInt(seek.dataset.row);
 		}
@@ -326,7 +367,7 @@ class DiagramPositioner {
 		if (entry.dataset.fork) {
 			seek2 = document.getElementById(entry.dataset.fork.split(" ")[1]);
 			if (!seek2.dataset.row) {
-				this.setEntryRow(seek2);
+				this._setEntryRow(seek2);
 			}
 			//Temporarily allow the space behind the entries we are forking to
 			this._freeGridSpace(seek.dataset.row, this._yearToGrid(seek.dataset.start)-1, this._yearToGrid(seek.dataset.start)-1);
@@ -337,12 +378,20 @@ class DiagramPositioner {
 		
 		//TODO: If a forking entry has an entry which becomes it (i.e. predecessor)
 		//		then its position gets forced by that before it can be calculated...
-		
 		const row = this._calcEntryRow(entry, start, end, near);
 		entry.dataset.row = row;
 		this._setGroupRow(entry);
+		
 		try {
 			this._blockGridSpace(row, start, end);
+			
+			//Apply blocks targeted at this entry
+			const block = document.querySelector('*[data-find="' + entry.id + '"]');
+			if(block !== null) {
+				console.log(`Blocking ${row} for ${entry.id} (${block.dataset.start} to ${block.dataset.end}`);
+				this._blockGridSpace(row, this._yearToGrid(block.dataset.start), this._yearToGrid(block.dataset.end));
+			}
+			
 		} catch(e) {
 			console.log(`${e}: called for ${entry.id} with row ${row}`);
 		}
@@ -380,6 +429,7 @@ class DiagramPositioner {
 		if (entry.dataset.become) {
 			const next = document.getElementById(entry.dataset.become);
 			
+			//Free up the space of the linked entry and set the row to the same as the current entry.
 			if(next.dataset.row) {
 				const s = next.dataset.start - this._yearStart;
 				const e = next.dataset.end - this._yearStart;
@@ -391,7 +441,7 @@ class DiagramPositioner {
 	}
 	
 	/**
-	 * Calculate a suitable row for an entry and return it.
+	 * Calculate a suitable row for an entry and return it. If the row is already set, that will be returned.
 	 * @protected
 	 * @param {HTMLElement} entry - the entry
 	 * @param {number} start - the number of units (years) from the start of the X axis the entry must start
@@ -614,7 +664,8 @@ class Diagram {
 		this._config = this._makeConfig(config);
 		this._applyCSSProperties();
 		this._container = document.getElementById(container);
-		this._entries = document.querySelectorAll("#" + container + " > " + this._config.entrySelector+":not(.timeline-exclude)");
+		this._entries = document.querySelectorAll("#" + container + " > " + this._config.entrySelector+":not(.timeline-exclude):not(.timeline-block)");
+		this._blocks = document.querySelectorAll(".timeline-block");
 	}
 	
 	/**
@@ -641,7 +692,7 @@ class Diagram {
 	_setConfigProp(prop, value) {
 		this._config[prop] = value;
 	}
-	
+		
 	/** Create the timeline.
 	 * This should be called after creating a class instance.
 	 */
@@ -660,12 +711,14 @@ class Diagram {
 	 */
 	_setup() {
 		this._prepareEntries();
-		this._prepareRows();
+		const dp = this._createPositioner();
+		const rows = dp.setRows(this._entries);
+		this._setConfigProp("rows", rows);
 		
 		//Set up container
 		this._container.classList.add("timeline-container");
 		this._container.style.height = (this._config.rows + 2) * this._config.rowHeight + "px"; //Add 2 rows to total for top and bottom space
- 		this._container.style.width = (this._config.yearEnd + 1 - this._config.yearStart) * this._config.yearWidth + "px"; //Add 1 year for padding
+		this._container.style.width = (this._config.yearEnd + 1 - this._config.yearStart) * this._config.yearWidth + "px"; //Add 1 year for padding
 	
 		this._setEntries();
 	}
@@ -681,30 +734,37 @@ class Diagram {
 	}
 	
 	/**
-	 * Set the row for all entries, using automatic diagramPositioner if available
+	 * Instantiate a DiagramPositioner object and pass any initial position _blocks
 	 * @protected
+	 * @return DiagramPositioner
 	 */
-	_prepareRows() {
+	_createPositioner() {
+		const years = this._config.yearEnd - this._config.yearStart;	
 		let rows = 1;
 		
-		//Find the highest manual row number
-		for (const entry of this._entries) {
+		//Find the highest manual row number (selector is for entries and any .timeline-block elements)
+		for (const entry of this._container.querySelectorAll(this._config.entrySelector+":not(.timeline-exclude), .timeline-block")) {
 			if (parseInt(entry.dataset.row) > rows) {
 				rows = parseInt(entry.dataset.row);
 			}
 		}
-
-		//If we are using the positioner only (otherwise must be manually set)
-		if (typeof DiagramPositioner === "function") {
-			const years = this._config.yearEnd - this._config.yearStart;
-			const dp = new DiagramPositioner(years, this._config.yearStart, rows);
-			
-			for (const entry of this._entries) {
-				dp.setEntryRow(entry);
-			}
-			rows = dp.rows;
+		
+		const dp = new DiagramPositioner(years, this._config.yearStart, rows);
+		dp.applyBlocks(this._blocks);
+		this._setConfigProp("rows", dp.rows);
+		
+		return dp;
+	}
+	
+	/** Set the row for all entries
+	 * @protected
+	 * @param DiagramPositioner dp
+	 */
+	_setRows(dp) {
+		for (const entry of this._entries) {
+			dp.setEntryRow(entry);
 		}
-		this._setConfigProp("rows", rows);
+		this._setConfigProp("rows", dp.rows);
 	}
 	
 	/**

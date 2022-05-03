@@ -50,6 +50,10 @@ $timeline-stroke-color: #999;
 	z-index: 9;
 }
 
+.timeline-block {
+	display: none;
+}
+
 .entry {
 	box-sizing: border-box;
 	position: absolute;

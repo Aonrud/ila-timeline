@@ -51,7 +51,8 @@ class Diagram {
 		this._config = this._makeConfig(config);
 		this._applyCSSProperties();
 		this._container = document.getElementById(container);
-		this._entries = document.querySelectorAll("#" + container + " > " + this._config.entrySelector+":not(.timeline-exclude)");
+		this._entries = document.querySelectorAll("#" + container + " > " + this._config.entrySelector+":not(.timeline-exclude):not(.timeline-block)");
+		this._blocks = document.querySelectorAll(".timeline-block");
 	}
 	
 	/**
@@ -78,7 +79,7 @@ class Diagram {
 	_setConfigProp(prop, value) {
 		this._config[prop] = value;
 	}
-	
+		
 	/** Create the timeline.
 	 * This should be called after creating a class instance.
 	 */
@@ -97,12 +98,14 @@ class Diagram {
 	 */
 	_setup() {
 		this._prepareEntries();
-		this._prepareRows();
+		const dp = this._createPositioner();
+		const rows = dp.setRows(this._entries);
+		this._setConfigProp("rows", rows);
 		
 		//Set up container
 		this._container.classList.add("timeline-container");
 		this._container.style.height = (this._config.rows + 2) * this._config.rowHeight + "px"; //Add 2 rows to total for top and bottom space
- 		this._container.style.width = (this._config.yearEnd + 1 - this._config.yearStart) * this._config.yearWidth + "px"; //Add 1 year for padding
+		this._container.style.width = (this._config.yearEnd + 1 - this._config.yearStart) * this._config.yearWidth + "px"; //Add 1 year for padding
 	
 		this._setEntries();
 	}
@@ -118,30 +121,37 @@ class Diagram {
 	}
 	
 	/**
-	 * Set the row for all entries, using automatic diagramPositioner if available
+	 * Instantiate a DiagramPositioner object and pass any initial position _blocks
 	 * @protected
+	 * @return DiagramPositioner
 	 */
-	_prepareRows() {
+	_createPositioner() {
+		const years = this._config.yearEnd - this._config.yearStart;	
 		let rows = 1;
 		
-		//Find the highest manual row number
-		for (const entry of this._entries) {
+		//Find the highest manual row number (selector is for entries and any .timeline-block elements)
+		for (const entry of this._container.querySelectorAll(this._config.entrySelector+":not(.timeline-exclude), .timeline-block")) {
 			if (parseInt(entry.dataset.row) > rows) {
 				rows = parseInt(entry.dataset.row);
 			}
 		}
-
-		//If we are using the positioner only (otherwise must be manually set)
-		if (typeof DiagramPositioner === "function") {
-			const years = this._config.yearEnd - this._config.yearStart;
-			const dp = new DiagramPositioner(years, this._config.yearStart, rows);
-			
-			for (const entry of this._entries) {
-				dp.setEntryRow(entry);
-			}
-			rows = dp.rows;
+		
+		const dp = new DiagramPositioner(years, this._config.yearStart, rows);
+		dp.applyBlocks(this._blocks);
+		this._setConfigProp("rows", dp.rows);
+		
+		return dp;
+	}
+	
+	/** Set the row for all entries
+	 * @protected
+	 * @param DiagramPositioner dp
+	 */
+	_setRows(dp) {
+		for (const entry of this._entries) {
+			dp.setEntryRow(entry);
 		}
-		this._setConfigProp("rows", rows);
+		this._setConfigProp("rows", dp.rows);
 	}
 	
 	/**

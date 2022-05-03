@@ -1,6 +1,6 @@
 /**
  * Calculates an available position for diagram entries which have not had their row (Y-axis position) set manually.
- * This is fairly rudamentary - a row with sufficient empty space for each entry (and any it joins directly with) will be calculated.
+ * This is fairly rudimentary - a row with sufficient empty space for each entry (and any it joins directly with) will be calculated.
  * If the entry splits from, merges with, or forks into other entries, the nearest row to those entries will be sought.
  * This is most effectively used in a hybrid form, using some manual positioning, allowing simpler cases to be positioned automatically.
  */
@@ -18,10 +18,52 @@ class DiagramPositioner {
 	}
 	
 	/**
+	 * Apply blocks that are manually specified.
+	 * Note: Blocks targeted at specific elements can also be set. These are handled in setEntryRow() when positioning the targeted entry.
+	 * @public
+	 * @param {Nodelist} blocks
+	 */
+	applyBlocks(blocks) {
+		for (const block of blocks) {
+			if (block.dataset.hasOwnProperty("row") && 
+				block.dataset.hasOwnProperty("start") &&
+				block.dataset.hasOwnProperty("end"))
+			{
+				try {
+					this._blockGridSpace(block.dataset.row, this._yearToGrid(block.dataset.start), this._yearToGrid(block.dataset.end));
+				} catch(e) {
+					console.log(`${e}: called for ${entry.id} with row ${row}`);
+				}
+			}
+		}
+	}
+	
+	/** Set the row for all entries, and return the row total
+	 * @public
+	 * @param Nodelist entries
+	 * @return Int
+	 */
+	setRows(entries) {
+		const manual = [...entries].filter(e => e.dataset.hasOwnProperty("row"));
+		const auto = [...entries].filter(e => !e.dataset.hasOwnProperty("row"));
+		
+		for (const entry of manual) {
+			this._setEntryRow(entry);
+		}
+		
+		for (const entry of auto) {
+			this._setEntryRow(entry);
+		}
+		
+		return this.rows;
+	}
+		
+	/**
 	 * Set the row for the provided entry.
+	 * @protected
 	 * @param {HTMLElement} entry
 	 */
-	setEntryRow(entry) {
+	_setEntryRow(entry) {
 		const start = this._yearToGrid(entry.dataset.start);
 		const end = this._yearToGrid(this._calcGroupEnd(entry));
 		let seek = null, seek2 = null, near = null;
@@ -45,7 +87,7 @@ class DiagramPositioner {
 		
 		if (seek && near === null) {
 			if (!seek.dataset.row) {
-				this.setEntryRow(seek);
+				this._setEntryRow(seek);
 			}
 			near = parseInt(seek.dataset.row);
 		}
@@ -53,7 +95,7 @@ class DiagramPositioner {
 		if (entry.dataset.fork) {
 			seek2 = document.getElementById(entry.dataset.fork.split(" ")[1]);
 			if (!seek2.dataset.row) {
-				this.setEntryRow(seek2);
+				this._setEntryRow(seek2);
 			}
 			//Temporarily allow the space behind the entries we are forking to
 			this._freeGridSpace(seek.dataset.row, this._yearToGrid(seek.dataset.start)-1, this._yearToGrid(seek.dataset.start)-1);
@@ -64,12 +106,20 @@ class DiagramPositioner {
 		
 		//TODO: If a forking entry has an entry which becomes it (i.e. predecessor)
 		//		then its position gets forced by that before it can be calculated...
-		
 		const row = this._calcEntryRow(entry, start, end, near);
 		entry.dataset.row = row;
 		this._setGroupRow(entry);
+		
 		try {
 			this._blockGridSpace(row, start, end);
+			
+			//Apply blocks targeted at this entry
+			const block = document.querySelector('*[data-find="' + entry.id + '"]');
+			if(block !== null) {
+				console.log(`Blocking ${row} for ${entry.id} (${block.dataset.start} to ${block.dataset.end}`);
+				this._blockGridSpace(row, this._yearToGrid(block.dataset.start), this._yearToGrid(block.dataset.end));
+			}
+			
 		} catch(e) {
 			console.log(`${e}: called for ${entry.id} with row ${row}`);
 		}
@@ -107,6 +157,7 @@ class DiagramPositioner {
 		if (entry.dataset.become) {
 			const next = document.getElementById(entry.dataset.become);
 			
+			//Free up the space of the linked entry and set the row to the same as the current entry.
 			if(next.dataset.row) {
 				const s = next.dataset.start - this._yearStart;
 				const e = next.dataset.end - this._yearStart;
@@ -118,7 +169,7 @@ class DiagramPositioner {
 	}
 	
 	/**
-	 * Calculate a suitable row for an entry and return it.
+	 * Calculate a suitable row for an entry and return it. If the row is already set, that will be returned.
 	 * @protected
 	 * @param {HTMLElement} entry - the entry
 	 * @param {number} start - the number of units (years) from the start of the X axis the entry must start
