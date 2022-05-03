@@ -35,7 +35,7 @@ class DiagramPositioner {
 			
 			//Prevent infinite recursion if merging with an entry which split from this one
 			if(mergeEl.dataset.split !== entry.id) {
-				seek = document.getElementById(entry.dataset.merge);
+				seek = mergeEl;
 			}
 		}
 		
