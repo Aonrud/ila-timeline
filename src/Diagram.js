@@ -3,7 +3,29 @@ import DiagramPositioner from './DiagramPositioner.js';
 import {applyConfig} from './util.js';
 
 /**
+ * @typedef {object} DiagramConfig
+ * @property {number} [config.yearStart = 1900] - the starting year for the timeline
+ * @property {number} [config.yearEnd = Current year + 1] - the end year for the timeline
+ * @property {number} [config.strokeWidth = 4] - the width in px of the joining lines
+ * @property {number} [config.yearWidth = 50] - the width in px of diagram used to for each year
+ * @property {number} [config.rowHeight = 50] - the height in px of each diagram row
+ * @property {number} [config.padding = 5] - the padding in px between rows
+ * @property {string} [config.strokeColour = "#999"] - the default colour for lines drawn (must be a valid colour hex)
+ * @property {number} [config.boxWidth = 100] - the width in px of each entry
+ * @property {boolean} [config.guides = true] - whether to draw striped guides at regular intervals in the timeline
+ * @property {number} [config.guideInterval = 5] - the interval in years between guides (ignored if 'guides' is false)
+ * @property {string} [config.entrySelector = "div"] - the CSS selector to match entries
+ * @property {string} [config.linkDashes = "4"] - The svg dasharray for link lines.
+ * 			Must be a valid dasharray. See <https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/stroke-dasharray>
+ * @property {string} [config.irregularDashes = "20 2"] - The svg dasharray for entries marked as 'irregular' with the data-irregular attribute.
+ * 			Must be a valid dasharray. See <https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/stroke-dasharray>
+ * @property {number} [config.groupingThreshold = 8] - The tolerance for distance between grouped entries when automatically positioning
+ * 
+ */
+
+/**
  * The default configuration object for the Diagram class
+ * @type DiagramConfig
  */
 const defaultDiagramConfig = {
 	yearStart: 1900,
@@ -29,23 +51,8 @@ class Diagram {
 	
 	/**
 	 * Create a diagram.
-	 * @param {string} container - The ID of the container element for the diagram.
-	 * @param {object} config - Configuration object for the diagram. Entirely optional.
-	 * @param {number} [config.yearStart = 1900] - the starting year for the timeline
-	 * @param {number} [config.yearEnd = Current year + 1] - the end year for the timeline
-	 * @param {number} [config.strokeWidth = 4] - the width in px of the joining lines
-	 * @param {number} [config.yearWidth = 50] - the width in px of diagram used to for each year
-	 * @param {number} [config.rowHeight = 50] - the height in px of each diagram row
-	 * @param {number} [config.padding = 5] - the padding in px between rows
-	 * @param {string} [config.strokeColour = "#999"] - the default colour for lines drawn (must be a valid colour hex)
-	 * @param {number} [config.boxWidth = 100] - the width in px of each entry
-	 * @param {boolean} [config.guides = true] - whether to draw striped guides at regular intervals in the timeline
-	 * @param {number} [config.guideInterval = 5] - the interval in years between guides (ignored if 'guides' is false)
-	 * @param {string} [config.entrySelector = "div"] - the CSS selector to match entries
-	 * @param {string} [config.linkDashes = "4"] - The svg dasharray for link lines.
-	 * 								Must be a valid dasharray. See <https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/stroke-dasharray>
-	 * @param {string} [config.irregularDashes = "20 2"] - The svg dasharray for entries marked as 'irregular' with the data-irregular attribute.
-	 * 								Must be a valid dasharray. See <https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/stroke-dasharray>
+	 * @param {string} [container] - The ID of the container element for the diagram.
+	 * @param {DiagramConfig} [config] - Configuration object for the diagram. Entirely optional.
 	 */
 	constructor(container, config = {}) {		
 		this._config = this._makeConfig(config);
@@ -58,8 +65,8 @@ class Diagram {
 	/**
 	 * Take the given config, apply defaults and return final config object.
 	 * @protected
-	 * @param {object} config
-	 * @return {object}
+	 * @param {DiagramConfig} config
+	 * @return {DiagramConfig}
 	 */
 	_makeConfig(config) {
 		const c = applyConfig(defaultDiagramConfig, config);
@@ -82,6 +89,7 @@ class Diagram {
 		
 	/** Create the timeline.
 	 * This should be called after creating a class instance.
+	 * @return {HTMLElement}
 	 */
 	create() {
 		this._setup();
@@ -123,7 +131,7 @@ class Diagram {
 	/**
 	 * Instantiate a DiagramPositioner object and pass any initial position _blocks
 	 * @protected
-	 * @return DiagramPositioner
+	 * @return {DiagramPositioner}
 	 */
 	_createPositioner() {
 		const years = this._config.yearEnd - this._config.yearStart;	
@@ -145,7 +153,7 @@ class Diagram {
 	
 	/** Set the row for all entries
 	 * @protected
-	 * @param DiagramPositioner dp
+	 * @param {DiagramPositioner} dp
 	 */
 	_setRows(dp) {
 		for (const entry of this._entries) {

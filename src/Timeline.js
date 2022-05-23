@@ -74,7 +74,7 @@ class Timeline {
 		if (this._config.panzoom === true) {
 			this._initPanzoom();
 			this._initControls();
-			window.addEventListener('hashchange', (e) => this._hashHandler(e));
+			window.addEventListener('hashchange', () => this._hashHandler());
 		}
 		if (location.hash) {
 			setTimeout(() => {
@@ -151,6 +151,7 @@ class Timeline {
 	/**
 	 * Set up the find form
 	 * @private
+	 * @param {HTMLElement} form
 	 */
 	_initFindForm(form) {
 		//Add the ID input
@@ -195,15 +196,15 @@ class Timeline {
 	}
 	
 	/**
-	 * Add entries to the "#filtered-entries", filtered by the value of the event-triggering input.
+	 * Add entries to the filtered entries container <ul> element, filtered by the value of the event-triggering input.
 	 * @private
-	 * @param {object} e
+	 * @param {Event} e
 	 */
 	_showEntryOptions(e) {
 		const val = e.target.value;
 		if (val.trim() === "") {
 			this._findConfig.results.innerHTML = "";
-			return null;
+			return;
 		}
 		
 		const filtered = this._filterEntries(val);
@@ -222,7 +223,7 @@ class Timeline {
 	 * Filter the list of entries to match the provided search string.
 	 * @private
 	 * @param {string} search
-	 * @return {array}
+	 * @return {{ id: string, name: string}[]} An array of found entries as objects with id and name
 	 */
 	_filterEntries(search) {
 		const filtered = [...document.querySelectorAll(".entry")]
@@ -238,7 +239,7 @@ class Timeline {
 	/**
 	 * Submit the clicked entry in the filtered list.
 	 * @private
-	 * @param {object} e
+	 * @param {Event} e
 	 */
 	_selectFilteredEntry(e) {
 		if(e.target.localName !== "li") return null;
@@ -257,7 +258,7 @@ class Timeline {
 	 * The submit action of the find form.
 	 * Pan to the entry with submitted ID, if it exists.
 	 * @private
-	 * @param {object} e
+	 * @param {Event} e
 	 * @fires Timeline#timelineFind
 	 */
 	_findSubmit(e) {
@@ -304,9 +305,8 @@ class Timeline {
 	/**
 	 * Handle URL hash. Hash of format '#find-{ID}' will pan to the given entry ID, if it exists.
 	 * @private
-	 * @param {object} e
 	 */
-	_hashHandler(e) {
+	_hashHandler() {
 		const id = location.hash.replace('#find-', '');
 		if(document.getElementById(id) && this._pz) this.panToEntry(id);
 	}

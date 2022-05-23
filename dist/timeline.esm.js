@@ -40,7 +40,7 @@ class SvgConnector {
 	 * @param {string} [settings.dashes] - A dasharray string for the SVG line. If omitted, a solid line will be used.
 	 * 		Must be a valid SVG dasharray (@see {@link https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/stroke-dasharray})
 	 * @param {String} [settings.title] - If included, a title element will be included on the line with the given text.
-	 * @return {object}
+	 * @return {SVGSVGElement}
 	 */
 	static draw({
 		start,
@@ -97,14 +97,18 @@ class SvgConnector {
 	}
 	
 	/**
+	 * @typedef {{ x1: number, x2: number, y1: number, y2: number} Coords
+	 */
+	
+	/**
 	 * Add a marker to the svg provided at the end specified.
-	 * @param {object} svg
-	 * @param {string} type
-	 * @param {string} pos
-	 * @param {object} coords
+	 * @param {SVGSVGElement} svg - The svg node to which the marker should be added
+	 * @param {("circle"|"square"|"dots")} type - One of "circle", "square" or "dots"
+	 * @param {('start'|'end')} pos
+	 * @param {Coords} coords
 	 * @param {number} stroke
 	 * @param {string} colour
-	 * @return {object|null}
+	 * @return {SVGSVGElement}
 	 */
 	static _addMarker(svg, type, pos, coords, stroke, colour) {
 		if (type == "circle") svg.append(this._drawCircleMarker(pos, coords, stroke, colour));
@@ -118,11 +122,11 @@ class SvgConnector {
 	
 	/**
 	 * Draw a square marker at the given position of the line represented by the given coords.
-	 * @param {string} pos - Either "start" or "end"
-	 * @param {object} coords - the four coords of the line
+	 * @param {('start'|'end')} pos - Either "start" or "end"
+	 * @param {Coords} coords - the four coords of the line
 	 * @param {number} stroke - the stroke width
 	 * @param {string} colour - the drawing colour
-	 * @return {object}
+	 * @return {SVGRectElement}
 	 */
 	static _drawSquareMarker(pos, coords, stroke, colour) {
 		let [x, y] = [coords.x1 - stroke, coords.y1 - stroke];
@@ -132,11 +136,11 @@ class SvgConnector {
 	
 	/**
 	 * Draw a circle marker at the given position of the line represented by the given coords.
-	 * @param {string} pos - Either "start" or "end"
-	 * @param {object} coords - the four coords of the line
+	 * @param {('start'|'end')} pos - Either "start" or "end"
+	 * @param {Coords} coords - the four coords of the line
 	 * @param {number} stroke - the stroke width
 	 * @param {string} colour - the drawing colour
-	 * @return {object}
+	 * @return {SVGCircleElement}
 	 */
 	static _drawCircleMarker(pos, coords, stroke, colour) {
 		let [x, y] = [coords.x1, coords.y1];
@@ -147,10 +151,10 @@ class SvgConnector {
 	/**
 	 * Draw dots marker at the end of the line.
 	 * (Note - requires full line coords, because marker has direction)
-	 * @param {object} coords - the 4 coords of the line being marked
+	 * @param {Coords} coords - the 4 coords of the line being marked
 	 * @param {number} stroke - the stroke width of the line
 	 * @param {string} colour - the drawing colour.
-	 * @return {object}
+	 * @return {SVGLineElement}
 	 */
 	static _drawDotsEnd(coords, stroke, colour) {
 		
@@ -181,17 +185,13 @@ class SvgConnector {
 	
 	/**
 	 * Returns an SVG line, which can be appended to an SVG element.
-	 * @param {object} coords - the x and y coordinates of the start and end points of the line
-	 * @param {number} coords.x1
-	 * @param {number} coords.y1
-	 * @param {number} coords.x2
-	 * @param {number} coords.y2
+	 * @param {Coords} coords - the x and y coordinates of the start and end points of the line
 	 * @param {string} colour - The colour of the line. Must be a valid hex colour.
 	 * @param {number} width - The width in px of the line
 	 * @param {string} [dashes] - The dasharray pattern of the line. If omitted, it will be solid.
 	 * 		Must be a valid SVG dasharray (@see {@link https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/stroke-dasharray})
 	 * @param {String} [title] - If included, a title element will be included with the given text.
-	 * @return {object}
+	 * @return {SVGLineElement}
 	 */
 	static drawLine(coords, colour, width, dashes = "", title = "") {
 		const line = document.createElementNS(svgns, "line");
@@ -215,8 +215,8 @@ class SvgConnector {
 	 * @param {number} cy - The Y coordinate of the circle centre
 	 * @param {number} r - The radius in px of the circle
 	 * @param {string} colour - The colour of the circle. Must be a valid hex colour.
-	 * @param {String} [title] - If included, a title element will be included with the given text.
-	 * @return {object}
+	 * @param {string} [title] - If included, a title element will be included with the given text.
+	 * @return {SVGCircleElement}
 	 */
 	static drawCircle(cx, cy, r, colour, title = "") {
 		const circle = document.createElementNS(svgns, "circle");
@@ -237,9 +237,9 @@ class SvgConnector {
 	 * @param {number} x - The X coordinate
 	 * @param {number} y - The y coordinate
 	 * @param {number} w - The width of the square
-	 * @param {string} colour - The colour of the square. Must be a valid hex colour
+	 * @param {string} colour - The colour of the square. Must be a valid CSS colour string.
 	 * @param {String} [title] - If included, a title element will be included with the given text.
-	 * @return {object}
+	 * @return {SVGRectElement}
 	 */
 	static drawSquare(x, y, w, colour, title = "") {
 		const square = document.createElementNS(svgns, "rect");
@@ -259,7 +259,7 @@ class SvgConnector {
 	/**
 	 * Create a title element with the given title
 	 * @param {string} title
-	 * @return {object}
+	 * @return {SVGTitleElement}
 	 */
 	static _createTitle(title) {
 		
@@ -616,7 +616,29 @@ function applyConfig(defaults, conf) {
 }
 
 /**
+ * @typedef {object} DiagramConfig
+ * @property {number} [config.yearStart = 1900] - the starting year for the timeline
+ * @property {number} [config.yearEnd = Current year + 1] - the end year for the timeline
+ * @property {number} [config.strokeWidth = 4] - the width in px of the joining lines
+ * @property {number} [config.yearWidth = 50] - the width in px of diagram used to for each year
+ * @property {number} [config.rowHeight = 50] - the height in px of each diagram row
+ * @property {number} [config.padding = 5] - the padding in px between rows
+ * @property {string} [config.strokeColour = "#999"] - the default colour for lines drawn (must be a valid colour hex)
+ * @property {number} [config.boxWidth = 100] - the width in px of each entry
+ * @property {boolean} [config.guides = true] - whether to draw striped guides at regular intervals in the timeline
+ * @property {number} [config.guideInterval = 5] - the interval in years between guides (ignored if 'guides' is false)
+ * @property {string} [config.entrySelector = "div"] - the CSS selector to match entries
+ * @property {string} [config.linkDashes = "4"] - The svg dasharray for link lines.
+ * 			Must be a valid dasharray. See <https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/stroke-dasharray>
+ * @property {string} [config.irregularDashes = "20 2"] - The svg dasharray for entries marked as 'irregular' with the data-irregular attribute.
+ * 			Must be a valid dasharray. See <https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/stroke-dasharray>
+ * @property {number} [config.groupingThreshold = 8] - The tolerance for distance between grouped entries when automatically positioning
+ * 
+ */
+
+/**
  * The default configuration object for the Diagram class
+ * @type DiagramConfig
  */
 const defaultDiagramConfig = {
 	yearStart: 1900,
@@ -642,23 +664,8 @@ class Diagram {
 	
 	/**
 	 * Create a diagram.
-	 * @param {string} container - The ID of the container element for the diagram.
-	 * @param {object} config - Configuration object for the diagram. Entirely optional.
-	 * @param {number} [config.yearStart = 1900] - the starting year for the timeline
-	 * @param {number} [config.yearEnd = Current year + 1] - the end year for the timeline
-	 * @param {number} [config.strokeWidth = 4] - the width in px of the joining lines
-	 * @param {number} [config.yearWidth = 50] - the width in px of diagram used to for each year
-	 * @param {number} [config.rowHeight = 50] - the height in px of each diagram row
-	 * @param {number} [config.padding = 5] - the padding in px between rows
-	 * @param {string} [config.strokeColour = "#999"] - the default colour for lines drawn (must be a valid colour hex)
-	 * @param {number} [config.boxWidth = 100] - the width in px of each entry
-	 * @param {boolean} [config.guides = true] - whether to draw striped guides at regular intervals in the timeline
-	 * @param {number} [config.guideInterval = 5] - the interval in years between guides (ignored if 'guides' is false)
-	 * @param {string} [config.entrySelector = "div"] - the CSS selector to match entries
-	 * @param {string} [config.linkDashes = "4"] - The svg dasharray for link lines.
-	 * 								Must be a valid dasharray. See <https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/stroke-dasharray>
-	 * @param {string} [config.irregularDashes = "20 2"] - The svg dasharray for entries marked as 'irregular' with the data-irregular attribute.
-	 * 								Must be a valid dasharray. See <https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/stroke-dasharray>
+	 * @param {string} [container] - The ID of the container element for the diagram.
+	 * @param {DiagramConfig} [config] - Configuration object for the diagram. Entirely optional.
 	 */
 	constructor(container, config = {}) {		
 		this._config = this._makeConfig(config);
@@ -671,8 +678,8 @@ class Diagram {
 	/**
 	 * Take the given config, apply defaults and return final config object.
 	 * @protected
-	 * @param {object} config
-	 * @return {object}
+	 * @param {DiagramConfig} config
+	 * @return {DiagramConfig}
 	 */
 	_makeConfig(config) {
 		const c = applyConfig(defaultDiagramConfig, config);
@@ -695,6 +702,7 @@ class Diagram {
 		
 	/** Create the timeline.
 	 * This should be called after creating a class instance.
+	 * @return {HTMLElement}
 	 */
 	create() {
 		this._setup();
@@ -736,7 +744,7 @@ class Diagram {
 	/**
 	 * Instantiate a DiagramPositioner object and pass any initial position _blocks
 	 * @protected
-	 * @return DiagramPositioner
+	 * @return {DiagramPositioner}
 	 */
 	_createPositioner() {
 		const years = this._config.yearEnd - this._config.yearStart;	
@@ -758,7 +766,7 @@ class Diagram {
 	
 	/** Set the row for all entries
 	 * @protected
-	 * @param DiagramPositioner dp
+	 * @param {DiagramPositioner} dp
 	 */
 	_setRows(dp) {
 		for (const entry of this._entries) {
@@ -1254,7 +1262,7 @@ class Timeline {
 		if (this._config.panzoom === true) {
 			this._initPanzoom();
 			this._initControls();
-			window.addEventListener('hashchange', (e) => this._hashHandler(e));
+			window.addEventListener('hashchange', () => this._hashHandler());
 		}
 		if (location.hash) {
 			setTimeout(() => {
@@ -1331,6 +1339,7 @@ class Timeline {
 	/**
 	 * Set up the find form
 	 * @private
+	 * @param {HTMLElement} form
 	 */
 	_initFindForm(form) {
 		//Add the ID input
@@ -1375,15 +1384,15 @@ class Timeline {
 	}
 	
 	/**
-	 * Add entries to the "#filtered-entries", filtered by the value of the event-triggering input.
+	 * Add entries to the filtered entries container <ul> element, filtered by the value of the event-triggering input.
 	 * @private
-	 * @param {object} e
+	 * @param {Event} e
 	 */
 	_showEntryOptions(e) {
 		const val = e.target.value;
 		if (val.trim() === "") {
 			this._findConfig.results.innerHTML = "";
-			return null;
+			return;
 		}
 		
 		const filtered = this._filterEntries(val);
@@ -1402,7 +1411,7 @@ class Timeline {
 	 * Filter the list of entries to match the provided search string.
 	 * @private
 	 * @param {string} search
-	 * @return {array}
+	 * @return {{ id: string, name: string}[]} An array of found entries as objects with id and name
 	 */
 	_filterEntries(search) {
 		const filtered = [...document.querySelectorAll(".entry")]
@@ -1418,7 +1427,7 @@ class Timeline {
 	/**
 	 * Submit the clicked entry in the filtered list.
 	 * @private
-	 * @param {object} e
+	 * @param {Event} e
 	 */
 	_selectFilteredEntry(e) {
 		if(e.target.localName !== "li") return null;
@@ -1437,7 +1446,7 @@ class Timeline {
 	 * The submit action of the find form.
 	 * Pan to the entry with submitted ID, if it exists.
 	 * @private
-	 * @param {object} e
+	 * @param {Event} e
 	 * @fires Timeline#timelineFind
 	 */
 	_findSubmit(e) {
@@ -1484,9 +1493,8 @@ class Timeline {
 	/**
 	 * Handle URL hash. Hash of format '#find-{ID}' will pan to the given entry ID, if it exists.
 	 * @private
-	 * @param {object} e
 	 */
-	_hashHandler(e) {
+	_hashHandler() {
 		const id = location.hash.replace('#find-', '');
 		if(document.getElementById(id) && this._pz) this.panToEntry(id);
 	}
