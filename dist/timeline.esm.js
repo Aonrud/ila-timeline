@@ -130,7 +130,7 @@ class SvgConnector {
 	 */
 	static _drawSquareMarker(pos, coords, stroke, colour) {
 		let [x, y] = [coords.x1 - stroke, coords.y1 - stroke];
-		if ("end") [x, y] = [coords.x2 - stroke, coords.y2 - stroke];
+		if (pos == "end") [x, y] = [coords.x2 - stroke, coords.y2 - stroke];
 		return this.drawSquare(x, y, stroke * 2.5, colour);
 	}
 	
@@ -144,7 +144,7 @@ class SvgConnector {
 	 */
 	static _drawCircleMarker(pos, coords, stroke, colour) {
 		let [x, y] = [coords.x1, coords.y1];
-		if ("end") [x, y] = [coords.x2, coords.y2];
+		if (pos == "end") [x, y] = [coords.x2, coords.y2];
 		return this.drawCircle(x, y, stroke, colour);
 	}
 	
