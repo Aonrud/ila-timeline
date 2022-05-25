@@ -41,7 +41,7 @@
 		 * @param {number} settings.end.y
 		 * @param {string} settings.stroke - The stroke width in px of the line
 		 * @param {string} settings.colour - The colour of the line. Must be a valid hex colour.
-		 * @param {array.<string>} [settings.markers] - An array of two string values indicating the start and end markers respectively.
+		 * @param {string[]} [settings.markers] - An array of two string values indicating the start and end markers respectively.
 		 * 		Valid values are "circle", "square" and "dots" (the last can only be used for end).
 		 * @param {string} [settings.dashes] - A dasharray string for the SVG line. If omitted, a solid line will be used.
 		 * 		Must be a valid SVG dasharray (@see {@link https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/stroke-dasharray})
@@ -103,7 +103,7 @@
 		}
 		
 		/**
-		 * @typedef {{ x1: number, x2: number, y1: number, y2: number} Coords
+		 * @typedef {{ x1: number, x2: number, y1: number, y2: number }} Coords
 		 */
 		
 		/**
@@ -318,8 +318,8 @@
 		
 		/** Set the row for all entries, and return the row total
 		 * @public
-		 * @param Nodelist entries
-		 * @return Int
+		 * @param {Nodelist} entries
+		 * @return {number}
 		 */
 		setRows(entries) {
 			const manual = [...entries].filter(e => e.dataset.hasOwnProperty("row"));
@@ -502,6 +502,7 @@
 		 * @param {number} y
 		 * @param {number} start
 		 * @param {number} end
+		 * @return {number}
 		 */
 		_findNearestGridSpace(y, start, end) {
 			let before = y, after = y;
@@ -708,6 +709,7 @@
 			
 		/** Create the timeline.
 		 * This should be called after creating a class instance.
+		 * @public
 		 * @return {HTMLElement}
 		 */
 		create() {
@@ -1231,6 +1233,7 @@
 	 * The class representing the Timeline.  This is the point of access to this tool.
 	 * The simplest usage is to instantiate a new Timeline object, and then call the create() method.
 	 * @alias Timeline
+	 * @public
 	 */
 	class Timeline {
 		/**
@@ -1260,6 +1263,7 @@
 		
 		/**
 		 * Create the Timeline. This should be called after instantiation.
+		 * @public
 		 */
 		create() {
 			const d = new Diagram(this._container, this._diagramConfig);
@@ -1278,7 +1282,8 @@
 		}
 		
 		/**
-		 * Take the provided config, separate config for the Diagram drawing class, and add in defaults for undefined properties.
+		 * Take the provided config, separate config for the Diagram drawing class,
+		 * and add in defaults for undefined properties.
 		 * @private
 		 * @param {object} config
 		 */
@@ -1289,6 +1294,7 @@
 		
 		/**
 		 * If Panzoom is enabled, pan to the element with the given ID, and reset the zoom.
+		 * @private
 		 * @param {string} id - The ID of a timeline entry
 		 * @fires Timeline#timelineFind
 		 */
@@ -1414,10 +1420,14 @@
 		}
 		
 		/**
+		 * @typedef {{ id: string, name: string }} EntrySearch
+		 */
+		
+		/**
 		 * Filter the list of entries to match the provided search string.
 		 * @private
 		 * @param {string} search
-		 * @return {{ id: string, name: string}[]} An array of found entries as objects with id and name
+		 * @return {EntrySearch[]}
 		 */
 		_filterEntries(search) {
 			const filtered = [...document.querySelectorAll(".entry")]

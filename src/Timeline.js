@@ -23,7 +23,19 @@ import {defaultDiagramConfig, Diagram} from './Diagram.js';
 import {applyConfig} from './util.js';
 
 /**
+ * @typedef {import('./Diagram.js').DiagramConfig | TimelineConfig} FullConfig
+ * 
+ * @typedef {object} TimelineConfig
+ * @property {boolean} [config.panzoom = false] - Whether to apply panning and zooming feature to the timeline.
+ * @property {string} [config.findForm = timeline-find] - The ID of the find form
+ * @property {string} [config.zoomIn = timeline-zoom-in] - The ID of the button to zoom in
+ * @property {string} [config.zoomOut = timeline-zoom-out] - The ID of the button to zoom out
+ * @property {string} [config.zoomReset = timeline-zoom-reset] - The ID of the button to reset the zoom level
+ */
+
+/**
  * The default configuration object for the Timeline
+ * @type {TimelineConfig}
  */
 const defaultTimelineConfig = {
 	panzoom: false,
@@ -37,27 +49,12 @@ const defaultTimelineConfig = {
  * The class representing the Timeline.  This is the point of access to this tool.
  * The simplest usage is to instantiate a new Timeline object, and then call the create() method.
  * @alias Timeline
+ * @public
  */
 class Timeline {
 	/**
 	 * @param {string} [container = diagram] - The ID of the container element for the timeline.
-	 * @param {object} [config] - All config for the timeline
-	 * @param {boolean} [config.panzoom = false] - Whether to apply panning and zooming feature to the timeline.
-	 * @param {string} [config.findForm = timeline-find] - The ID of the find form
-	 * @param {string} [config.zoomIn = timeline-zoom-in] - The ID of the button to zoom in
-	 * @param {string} [config.zoomOut = timeline-zoom-out] - The ID of the button to zoom out
-	 * @param {string} [config.zoomReset = timeline-zoom-reset] - The ID of the button to reset the zoom level
-	 * @param {number} [config.yearStart = 1900] - the starting year for the timeline
-	 * @param {number} [config.yearEnd = Current year + 1] - the end year for the timeline
-	 * @param {number} [config.strokeWidth = 4] - the width in px of the joining lines
-	 * @param {number} [config.yearWidth = 50] - the width in px of diagram used for each year
-	 * @param {number} [config.rowHeight = 50] - the height in px of each diagram row
-	 * @param {number} [config.padding = 5] - the padding in px between rows
-	 * @param {string} [config.strokeColour = #999] - the default colour for lines drawn (must be a valid colour hex)
-	 * @param {number} [config.boxWidth = 100] - the width in px of each entry
-	 * @param {boolean} [config.guides = true] - whether to draw striped guides at regular intervals in the timeline
-	 * @param {number} [config.guideInterval = 5] - the interval in years between guides (ignored if 'guides' is false)
-	 * @param {string} [config.entrySelector = div] - the CSS selector used for entries
+	 * @param {FullConfig} [config] - All config for the timeline
 	 */
 	constructor(container = "diagram", config = {}) {
 		this._container = container;
@@ -66,6 +63,7 @@ class Timeline {
 	
 	/**
 	 * Create the Timeline. This should be called after instantiation.
+	 * @public
 	 */
 	create() {
 		const d = new Diagram(this._container, this._diagramConfig);
@@ -84,17 +82,26 @@ class Timeline {
 	}
 	
 	/**
-	 * Take the provided config, separate config for the Diagram drawing class, and add in defaults for undefined properties.
+	 * Take the provided config, separate config for the Diagram drawing class,
+	 * and add in defaults for undefined properties.
 	 * @private
-	 * @param {object} config
+	 * @param {FullConfig} config
 	 */
 	_setConfig(config) {
+		/**
+		 * @type {TimelineConfig}
+		 */
 		this._config = applyConfig(defaultTimelineConfig, config);
+		
+		/**
+		 * @type {DiagramConfig}
+		 */
 		this._diagramConfig = applyConfig(defaultDiagramConfig, config);
 	}
 	
 	/**
 	 * If Panzoom is enabled, pan to the element with the given ID, and reset the zoom.
+	 * @public
 	 * @param {string} id - The ID of a timeline entry
 	 * @fires Timeline#timelineFind
 	 */
@@ -220,10 +227,14 @@ class Timeline {
 	}
 	
 	/**
+	 * @typedef {{ id: string, name: string }} EntrySearch
+	 */
+	
+	/**
 	 * Filter the list of entries to match the provided search string.
 	 * @private
 	 * @param {string} search
-	 * @return {{ id: string, name: string}[]} An array of found entries as objects with id and name
+	 * @return {EntrySearch[]}
 	 */
 	_filterEntries(search) {
 		const filtered = [...document.querySelectorAll(".entry")]

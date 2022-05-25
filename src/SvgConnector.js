@@ -19,7 +19,7 @@ class SvgConnector {
 	 * @param {number} settings.end.y
 	 * @param {string} settings.stroke - The stroke width in px of the line
 	 * @param {string} settings.colour - The colour of the line. Must be a valid hex colour.
-	 * @param {array.<string>} [settings.markers] - An array of two string values indicating the start and end markers respectively.
+	 * @param {string[]} [settings.markers] - An array of two string values indicating the start and end markers respectively.
 	 * 		Valid values are "circle", "square" and "dots" (the last can only be used for end).
 	 * @param {string} [settings.dashes] - A dasharray string for the SVG line. If omitted, a solid line will be used.
 	 * 		Must be a valid SVG dasharray (@see {@link https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/stroke-dasharray})
@@ -81,7 +81,7 @@ class SvgConnector {
 	}
 	
 	/**
-	 * @typedef {{ x1: number, x2: number, y1: number, y2: number} Coords
+	 * @typedef {{ x1: number, x2: number, y1: number, y2: number }} Coords
 	 */
 	
 	/**

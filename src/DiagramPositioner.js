@@ -40,8 +40,8 @@ class DiagramPositioner {
 	
 	/** Set the row for all entries, and return the row total
 	 * @public
-	 * @param Nodelist entries
-	 * @return Int
+	 * @param {Nodelist} entries
+	 * @return {number}
 	 */
 	setRows(entries) {
 		const manual = [...entries].filter(e => e.dataset.hasOwnProperty("row"));
@@ -224,6 +224,7 @@ class DiagramPositioner {
 	 * @param {number} y
 	 * @param {number} start
 	 * @param {number} end
+	 * @return {number}
 	 */
 	_findNearestGridSpace(y, start, end) {
 		let before = y, after = y;

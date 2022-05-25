@@ -89,6 +89,7 @@ class Diagram {
 		
 	/** Create the timeline.
 	 * This should be called after creating a class instance.
+	 * @public
 	 * @return {HTMLElement}
 	 */
 	create() {
