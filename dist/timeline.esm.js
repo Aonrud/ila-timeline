@@ -277,7 +277,7 @@ class SvgConnector {
  * 2. Order positioning of splits reverse-chronologically so space is allocated without overlap.
  * 3. Check for splits close to each other and select alternating sides.
  * 4. Add grouping option (possibly just extending the related groups to include free-floating entries?)
- * 5. DEPRECATE FORKS! Use a split and merge together instead.
+ * 5. Complete fork deprecation - fix cases where split & merge used to simulate fork
  * 6. Fix manually set rows (currently getting ignored when forcing entry posiitions)
  */
 
@@ -289,7 +289,6 @@ class SvgConnector {
  * @property {number} start
  * @property {number} end
  * @property {number} [row]
- * @property {EntryID[]} [fork]
  * @property {EntryID} [merge]
  * @property {EntryID} [split]
  * @property {EntryID[]} [links]
@@ -465,13 +464,7 @@ class DiagramPositioner {
 		//Recursively position groups linked to this one, if they aren't already complete (all entries have a row)
 		for (const group of entry.related.filter( e => {
 			if(e !== entry && e.related && e.related.map( r => !r.row).length > 0) return true;
-		})) {
-			//Special case if this entry forks to a pre-existing entry, don't link to that one.
-			if (entry.fork && entry.fork.includes(group.id) && group.start < entry.start) {
-				console.log(`Skipping fork to earlier entry ${group.id}`);
-				break;
-			}
-			
+		})) {			
 			console.log(`${entry.id}: Moving to linked group ${group.id}`);
 			this._positionRelated(group);
 		}
@@ -490,8 +483,6 @@ class DiagramPositioner {
 		const steps = this._findEntriesByValue("related", entry).filter(e => e.id !== entry.id);
 		console.log(steps);
 		for (const step of steps) {
-			//Special case - if the group is a fork pointing to a pre-existing entry, skip it
-			if (step.fork && Math.min(...this._findEntriesByValues("id", (step.fork)).map( e => e.start)) > entry.start) break;
 			
 			//If linked by split and merge to different groups, the root is the group split from
 			if (step.id == entry.merge && entry.split && !step.related.includes(this._findEntriesByValue("id", entry.split))) {
@@ -513,7 +504,7 @@ class DiagramPositioner {
 		/*
 		 * Order of priority:
 		 * 1. Master entry
-		 * 2. Forks - forced to above and below master entry row
+		 * 2. Split & merge
 		 * 3. Splits
 		 * 4. Merges
 		 */
@@ -533,9 +524,6 @@ class DiagramPositioner {
 			entry.rowTemp = this._getAnyRow(entry.start, entry.end, entry);
 			entry.grid = this._blockGridRow(entry.rowTemp, this._yearToGrid(entry.start), this._yearToGrid(entry.end), entry.grid);
 		}
-		
-		//Forks
-		this._calculateRelatedFork(entry);
 		
 		//Splits & merges
 		let SplitsMerges = entry.related.filter(e => e.merge == entry.id || e.split == entry.id);
@@ -565,31 +553,6 @@ class DiagramPositioner {
 			delete c.rowTemp;
 		}
 		return entry;
-	}
-	
-	/**
-	 * @param {DiagramEntry} entry
-	 */
-	_calculateRelatedFork(entry) {
-		if (!entry.fork) return;
-		
-		const f1 = this._findEntriesByValue("id",entry.fork[0])[0];
-		const f2 = this._findEntriesByValue("id",entry.fork[1])[0];
-		let row1, row2;
-		
-		if (entry.rowTemp > 0) {
-			row1 = this._checkGridRange(this._yearToGrid(f1.start), this._yearToGrid(f1.end), entry.rowTemp-1, entry.rowTemp-1, entry.grid);
-		}
-		
-		if (entry.rowTemp < entry.grid.length -1) {
-			row2 = this._checkGridRange(this._yearToGrid(f2.start), this._yearToGrid(f2.end), entry.rowTemp+1, entry.rowTemp+1, entry.grid);
-		}
-		if (!row1) row1 = this._shuntRelatedEntries(entry.rowTemp, 1, entry);
-		if (!row2) row2 = this._shuntRelatedEntries(entry.rowTemp+1, 1, entry);
-		f1.rowTemp = row1;
-		entry.grid = this._blockGridRow(row1, this._yearToGrid(f1.start), this._yearToGrid(f1.end), entry.grid);
-		f2.rowTemp = row2;
-		entry.grid = this._blockGridRow(row2, this._yearToGrid(f2.start), this._yearToGrid(f2.end), entry.grid);
 	}
 	
 	/**
@@ -652,7 +615,6 @@ class DiagramPositioner {
 		e.end = t.end;
 		delete e.become;
 		if (t.merge) e.merge = t.merge;
-		if (t.fork) e.fork = t.fork;
 
 		return e;
 	}
@@ -682,10 +644,7 @@ class DiagramPositioner {
 	 */
 	_getRelated(entry, entries) {
 		let related = [ entry ];
-		
-		//Add forks
-		if (entry.fork) related = related.concat(this._findEntriesByValues("id", entry.fork, entries));
-		
+
 		//Add splits
 		related = related.concat(this._findEntriesByValue("split", entry.id, entries));
 		
@@ -1424,12 +1383,7 @@ class Diagram {
 			entry.dataset.end = ( entry.dataset.end ? entry.dataset.end : this._config.yearEnd );
 			if (entry.dataset.become) {
 				entry.dataset.end = parseInt(document.getElementById(entry.dataset.become).dataset.start);
-			}
-			if (entry.dataset.fork) {
-				const forks = entry.dataset.fork.split(" ");
-				entry.dataset.end = Math.max(document.getElementById(forks[0]).dataset.start, document.getElementById(forks[1]).dataset.start);
-			}
-			
+			}			
 // 			entry.dataset.xLength = parseInt(entry.dataset.end) - parseInt(entry.dataset.start);
 		}
 	}
@@ -1604,7 +1558,6 @@ class Diagram {
 			
 			//Ends without joining another entry
 			if (!entry.dataset.merge &&
-				!entry.dataset.fork &&
 				!entry.dataset.become
 			) {
 				endMarker = (entry.dataset.endEstimate ? "dots" : "circle");
@@ -1644,9 +1597,6 @@ class Diagram {
 			if (entry.dataset.split) {
 				this._drawSplit(entry, colour);
 			}
-			if (entry.dataset.fork) {
- 				this._drawForks(entry, colour);
-			}
 			if (entry.dataset.links) {
 				this._drawLinks(entry, colour);
 			}
@@ -1671,43 +1621,21 @@ class Diagram {
 			x: this._yearToWidth(entry.dataset.start),
 			y: this._getYCentre(source.id)
 		};
+		
+		//Special case - if the split occurs when the former entry ends.
+		if (source.dataset.end <= entry.dataset.start) {
+			console.log(`Former start ${start.x}`);
+			start.x = start.x - this._config.yearWidth;
+			console.log(`New start ${start.x}`);
+			direction = "left";
+		}
+		
 		const end = this._getJoinCoords(entry.id, direction);
 		
 		const line = SvgConnector.draw( { start: start, end: end, stroke: this._config.strokeWidth, colour: colour });
 		
 		line.classList.add("split");
 		this._container.append(line);
-	}
-	
-	/**
-	 * Draw forks.
-	 * @protected
-	 * @param {HTMLElement} entry
-	 * @param {string} colour
-	 */
-	_drawForks(entry, colour) {
-		const forks = entry.dataset.fork.split(" ");
-		const forkYear = parseInt(entry.dataset.end);
-
-		const start = {
-			x: this._yearToWidth(forkYear),
-			y: this._getYCentre(entry.id)
-		};
-		const end1 = {
-			x: this._yearToWidth(forkYear+1),
-			y: this._getYCentre(forks[0])
-		};
-		const end2 = {
-			x: this._yearToWidth(forkYear+1),
-			y: this._getYCentre(forks[1])
-		};
-		
-		const fork1 = SvgConnector.draw({ start: start, end: end1, stroke: this._config.strokeWidth, colour: colour });
-		const fork2 = SvgConnector.draw({ start: start, end: end2, stroke: this._config.strokeWidth, colour: colour });
-		
-		fork1.classList.add("fork");
-		fork2.classList.add("fork");
-		this._container.append(fork1, fork2);
 	}
 	
 	/**

@@ -13,9 +13,9 @@
 			<div id="D" data-start="1985" data-become="E">D Name Changes</div>
 			<div id="E" data-start="1990" >E Name Changes</div>
 			<div id="F" data-start="1988" data-split="D" data-colour="#395">F Splitting Entry</div>
-			<div id="G" data-start="1973" data-row="3" data-fork="H I">G Forking Entry</div>
+			<div id="G" data-start="1973" data-row="3" data-merge="H" data-end="1976">G Forking Entry</div>
 			<div id="H" data-start="1976" data-end="1995" data-irregular="true">H Irregular Entry</div>
-			<div id="I" data-start="1976" data-row="4" data-end="1982" data-end-estimate="true">I End Estimated</div>
+			<div id="I" data-start="1976" data-row="4" data-split="G" data-end="1982" data-end-estimate="true">I End Estimated</div>
 			<div id="J" data-start="1990" data-split="H" data-become="K">J Overlapping Entry</div>
 			<div id="K" data-start="1990" data-end="1993">K Overlapping Entry</div>
 			<div id="L" data-start="1985" data-end="1995">L Broken Links</div>
@@ -28,14 +28,6 @@
 <!-- 			<div id="S" data-start="1995" data-links="R" data-row="6">S is linked to R with the gap blocked</div> -->
 			<div id="T" data-start="1987" data-end="1990">T could fit that gap</div>
 			<div class="timeline-block" data-find="R" data-start="1985" data-end="1995" />
-			
-			<!--TODO:  Block doesn't interact well with forks.  Testing each row relevant G, H and I:
-						0: Fine (though H sits in row with G)
-						1. Throws H on top of I as row above is blocked - shouldn't happen.
-						2. Fine
-						3. G sits within the blocked range.
-						4. I sits within blocked range.
-			-->
 			<div class="timeline-block" data-start="1970" data-end="1990" data-row="8"></div>
 		</div>
 		<script src="../dist/timeline.js"></script>

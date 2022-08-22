@@ -86,12 +86,7 @@ class Diagram {
 			entry.dataset.end = ( entry.dataset.end ? entry.dataset.end : this._config.yearEnd );
 			if (entry.dataset.become) {
 				entry.dataset.end = parseInt(document.getElementById(entry.dataset.become).dataset.start);
-			}
-			if (entry.dataset.fork) {
-				const forks = entry.dataset.fork.split(" ");
-				entry.dataset.end = Math.max(document.getElementById(forks[0]).dataset.start, document.getElementById(forks[1]).dataset.start);
-			}
-			
+			}			
 // 			entry.dataset.xLength = parseInt(entry.dataset.end) - parseInt(entry.dataset.start);
 		}
 	}
@@ -266,7 +261,6 @@ class Diagram {
 			
 			//Ends without joining another entry
 			if (!entry.dataset.merge &&
-				!entry.dataset.fork &&
 				!entry.dataset.become
 			) {
 				endMarker = (entry.dataset.endEstimate ? "dots" : "circle");
@@ -306,9 +300,6 @@ class Diagram {
 			if (entry.dataset.split) {
 				this._drawSplit(entry, colour);
 			}
-			if (entry.dataset.fork) {
- 				this._drawForks(entry, colour);
-			}
 			if (entry.dataset.links) {
 				this._drawLinks(entry, colour);
 			}
@@ -333,43 +324,21 @@ class Diagram {
 			x: this._yearToWidth(entry.dataset.start),
 			y: this._getYCentre(source.id)
 		}
+		
+		//Special case - if the split occurs when the former entry ends.
+		if (source.dataset.end <= entry.dataset.start) {
+			console.log(`Former start ${start.x}`);
+			start.x = start.x - this._config.yearWidth;
+			console.log(`New start ${start.x}`);
+			direction = "left";
+		}
+		
 		const end = this._getJoinCoords(entry.id, direction);
 		
 		const line = SvgConnector.draw( { start: start, end: end, stroke: this._config.strokeWidth, colour: colour });
 		
 		line.classList.add("split");
 		this._container.append(line);
-	}
-	
-	/**
-	 * Draw forks.
-	 * @protected
-	 * @param {HTMLElement} entry
-	 * @param {string} colour
-	 */
-	_drawForks(entry, colour) {
-		const forks = entry.dataset.fork.split(" ");
-		const forkYear = parseInt(entry.dataset.end);
-
-		const start = {
-			x: this._yearToWidth(forkYear),
-			y: this._getYCentre(entry.id)
-		}
-		const end1 = {
-			x: this._yearToWidth(forkYear+1),
-			y: this._getYCentre(forks[0])
-		}
-		const end2 = {
-			x: this._yearToWidth(forkYear+1),
-			y: this._getYCentre(forks[1])
-		}
-		
-		const fork1 = SvgConnector.draw({ start: start, end: end1, stroke: this._config.strokeWidth, colour: colour });
-		const fork2 = SvgConnector.draw({ start: start, end: end2, stroke: this._config.strokeWidth, colour: colour });
-		
-		fork1.classList.add("fork");
-		fork2.classList.add("fork");
-		this._container.append(fork1, fork2);
 	}
 	
 	/**
@@ -517,25 +486,21 @@ class Diagram {
 					x: l,
 					y: t + h/2 + (offset * offsetIncrement)
 				};
-				break;
 			case 'right':
 				return {
 					x: l + w,
 					y: t + h/2 + (offset * offsetIncrement)
 				};
-				break;
 			case 'top':
 				return {
 					x: l + w/2 + (offset * offsetIncrement),
 					y: t
 				};
-				break;
 			case 'bottom':
 				return {
 					x: l + w/2 + (offset * offsetIncrement),
 					y: t + h
 				};
-				break;
 			default:
 				throw `Invalid element side specified: Called with ${side}. Entry: ${id}`;
 		}
