@@ -1,11 +1,11 @@
 /**
  * TODO:
- * 1. Make inserting row into group relative to group positions (i.e. don't widen the separation between grouped
+ * 1. Make inserting row into a cluser relative to cluster positions (i.e. don't widen the separation between clustered
  * 		entries if not needed. Should be possible by only shunting the required year range instead of the whole row.
- * 2. Order positioning of splits reverse-chronologically so space is allocated without overlap.
- * 3. Check for splits close to each other and select alternating sides.
- * 4. Add grouping option (possibly just extending the related groups to include free-floating entries?)
- * 5. Complete fork deprecation - fix cases where split & merge used to simulate fork
+ * 2. Implement grouping - assigning group to entries regardless of direct cluster link
+ * 3. Order positioning of splits reverse-chronologically so space is allocated without overlap.
+ * 4. Check for splits close to each other and select alternating sides.
+ * 5. Add grouping option (possibly just extending the cluster groups to include free-floating entries?)
  * 6. Fix manually set rows (currently getting ignored when forcing entry posiitions)
  */
 
@@ -20,7 +20,7 @@
  * @property {EntryID} [merge]
  * @property {EntryID} [split]
  * @property {EntryID[]} [links]
- * @property {DiagramEntry[]} [related]
+ * @property {DiagramEntry[]} [cluster]
  * @property {{EntryID: { row: number, relative: number, actual: number}}} [relativeRows]
  * @property {number} [rowTemp]
  * 
@@ -79,7 +79,11 @@ class DiagramPositioner {
 		this._yearEnd = yearEnd;
 		this._xLength = yearEnd - yearStart + 1;
 		this._grid = this._createGrid(this._entries);
+		
+		//Calculate the positions
 		this._position();
+		
+		//Apply the positions to the entry nodes
 		this._applyToNodes();
 		
 		console.log(this._order);
@@ -104,26 +108,26 @@ class DiagramPositioner {
 	 */
 	_position() {
 		//Order of calculation:
-		//1. Relationship groups that are linked to others should be positioned first.
-		//2. Then any remaining relationship groups.
+		//1. Relationship clusters that are linked to others should be positioned first.
+		//2. Then any remaining relationship clusters.
 		//3. Then any remaining entries.
 		
 		/**
-		 * @type {EntryID[]} Temporary container to record the order of execution for related groups.
+		 * @type {EntryID[]} Temporary container to record the order of execution for related clusters.
 		 */
 		this._order = [];
 		
-		for (let e of this._entries.filter( e => e.related )) {
-			e = this._calculateRelatedPositions(e);
+		for (let e of this._entries.filter( e => e.cluster )) {
+			e = this._calculateClusterPositions(e);
 		}
 		
-		while (this._entries.find(e => e.related && isNaN(e.row))) {
-			this._positionRelated(this._findRelatedGroupSource(this._entries.find(e => e.related && isNaN(e.row))));
+		while (this._entries.find(e => e.cluster && isNaN(e.row))) {
+			this._positionCluster(this._findRelatedClusterSource(this._entries.find(e => e.cluster && isNaN(e.row))));
 		}
 		
 		//TODO: Do better than running the loop twice? lazy...
 		for (const id of this._order.reverse()) {
-			this._adjustRelated(this._findEntriesByValue("id", id)[0]);
+			this._adjustCluster(this._findEntriesByValue("id", id)[0]);
 		}
 		
 		//Any entries left.
@@ -145,17 +149,17 @@ class DiagramPositioner {
 	}
 	
 	/**
-	 * Apply row positions to the related group of entries for this entry.
+	 * Apply row positions to the cluster for this entry.
 	 * @param {DiagramEntry} entry
 	 */
-	_positionRelated(entry) {
+	_positionCluster(entry) {
 		let log = false;
 		if (entry.id == "G") log = true;
 		
 		this._order.push(entry.id);
-		console.log(`${entry.id}: root is ${this._findRelatedGroupSource(entry).id}`);
+		console.log(`${entry.id}: root is ${this._findRelatedClusterSource(entry).id}`);
 		if (entry.grid === undefined) throw new Error(`Tried to position ${entry.id} without a calculated group grid.`);
-		let space = this._fitRelated(entry);
+		let space = this._fitCluster(entry);
 		console.log(`Group: ${entry.id}`);
 		console.log(`${entry.id} grid check: ${JSON.stringify(space)}`);
 		
@@ -164,71 +168,71 @@ class DiagramPositioner {
 			while (space.row !== null && entry.grid.length + space.row > this._grid.length) {
 				this._addGridRow();
 			}
-			space = this._fitRelated(entry);
+			space = this._fitCluster(entry);
 // 			console.log(`${entry.id} no fit at current row. Try row+1`);
 			//Otherwise, force it.
-			space = this._forceRelated(entry);
+			space = this._forceCluster(entry);
 			console.log(`${entry.id} forced: ${JSON.stringify(space)}`);
 		}
 		
-		//Try fitting if we shunt the first failed row of the related grid. 
+		//Try fitting if we shunt the first failed row of the cluster grid. 
 		if (!space.fit) {
-			this._shuntRelatedEntries(space.count, 1, entry);
-			space = this._fitRelated(entry);
+			this._shuntClusterEntries(space.count, 1, entry);
+			space = this._fitCluster(entry);
 			console.log(`${entry.id} shunted at ${space.count}. Check: ${JSON.stringify(space)}`);
 		}
 		
 		if (space.fit) {
-			for (const c of entry.related) {
+			for (const c of entry.cluster) {
 				if (log) console.log(`Existing row for ${c.id}: ${c.row}`);
 				console.log(space);
 				const row = (c.row ? c.row : space.row + c.relativeRows[entry.id].row);
 				console.log(`${c.id}: ${row}`);
 				if (c.row !== row) this._assignRow(row, c);
-				if (c.related) c.anchor = row;
+				if (c.cluster) c.anchor = row;
 			}
 		}
 		
 		//Recursively position groups linked to this one, if they aren't already complete (all entries have a row)
-		for (const group of entry.related.filter( e => {
-			if(e !== entry && e.related && e.related.map( r => !r.row).length > 0) return true;
+		for (const cluster of entry.cluster.filter( e => {
+			if(e !== entry && e.cluster && e.cluster.map( r => !r.row).length > 0) return true;
 		})) {			
-			console.log(`${entry.id}: Moving to linked group ${group.id}`);
-			this._positionRelated(group);
+			console.log(`${entry.id}: Moving to linked cluster ${cluster.id}`);
+			this._positionCluster(cluster);
 		}
 	}
 	
 	/**
-	 * Follow the chain of relationships back to the root group and return that entry.
+	 * Follow the chain of relationships back to the root cluster and return that entry.
 	 * @param {DiagramEntry} entry
 	 * @return {DiagramEntry}
 	 */
-	_findRelatedGroupSource(entry) {
+	_findRelatedClusterSource(entry) {
 		let go = entry;
 		console.log(`Following chain for ${entry.id}`);
 		
 		//Entries to which this group is linked by membership, excluding itself
-		const steps = this._findEntriesByValue("related", entry).filter(e => e.id !== entry.id);
+		const steps = this._findEntriesByValue("cluster", entry).filter(e => e.id !== entry.id);
 		console.log(steps);
 		for (const step of steps) {
 			
 			//If linked by split and merge to different groups, the root is the group split from
-			if (step.id == entry.merge && entry.split && !step.related.includes(this._findEntriesByValue("id", entry.split))) {
+			if (step.id == entry.merge && entry.split && !step.cluster.includes(this._findEntriesByValue("id", entry.split))) {
 				console.log(`Choosing split branch to recurse`);
 				break;
 			}
 			
-			go = this._findRelatedGroupSource(step);
+			go = this._findRelatedClusterSource(step);
 		}
 		console.log(`${entry.id} chains with ${go.id}`);
 		return go;
 	}
 	
 	/**
-	 * Calculate the relative positions of entries related to the provided entry.
+	 * Calculate the relative positions of entries in the same cluster as the provided entry.
 	 * @param {DiagramEntry} entry
 	 */
-	_calculateRelatedPositions(entry) {
+	_calculateClusterPositions(entry) {
 		/*
 		 * Order of priority:
 		 * 1. Master entry
@@ -237,13 +241,13 @@ class DiagramPositioner {
 		 * 4. Merges
 		 */
 		
-		let gridAbs = this._createGrid(entry.related);
+		let gridAbs = this._createGrid(entry.cluster);
 		let grid = this._makeGridRelative(gridAbs);
 		const diff = gridAbs.length - grid.length;
 		entry.grid = grid;
 		
 		//If any rows are already assigned
-		for (const c of entry.related.filter(e => e.row)) {
+		for (const c of entry.cluster.filter(e => e.row)) {
 			entry.rowTemp = c.row - parseInt(diff);
 		}
 		
@@ -254,7 +258,7 @@ class DiagramPositioner {
 		}
 		
 		//Splits & merges
-		let SplitsMerges = entry.related.filter(e => e.merge == entry.id || e.split == entry.id);
+		let SplitsMerges = entry.cluster.filter(e => e.merge == entry.id || e.split == entry.id);
 		SplitsMerges.sort( (a, b) => {
 			const y1 = (a.split == entry.id ? a.start : a.merge);
 			const y2 = (b.split == entry.id ? b.start : b.merge);
@@ -268,19 +272,19 @@ class DiagramPositioner {
 		}
 		
 		//Arbitrarily assign remaining
-		for (const c of entry.related.filter(c => c.rowTemp === undefined)) {
+		for (const c of entry.cluster.filter(c => c.rowTemp === undefined)) {
 			let row = this._getAnyRow(c.start, c.end, entry);
 			entry.grid = this._blockGridRow(row, this._yearToGrid(c.start), this._yearToGrid(c.end), entry.grid);
 			c.rowTemp = row;
 		}
 		
-		for (const c of entry.related) {
+		for (const c of entry.cluster) {
 			const rel = c.relativeRows || {};
 			rel[entry.id] = { "row": c.rowTemp, "relative": c.rowTemp - entry.rowTemp}
 			c.relativeRows = rel;
 		}
 		
-		for (const c of entry.related) {
+		for (const c of entry.cluster) {
 			delete c.rowTemp;
 		}
 		return entry;
@@ -324,8 +328,8 @@ class DiagramPositioner {
 		
 		//For convenience, give both the entry and linked entries knowledge of their relationship
 		for (const e of entries) {
-			const related = this._getRelated(e, entries);
-			if (related.length > 1) e.related = related;
+			const cluster = this._getCluster(e, entries);
+			if (cluster.length > 1) e.cluster = cluster;
 		}
 		return entries;
 	}
@@ -368,27 +372,27 @@ class DiagramPositioner {
 	}
 	
 	/**
-	 * Get an array of all entries in 'entries' that are related to 'entry'.
+	 * Get an array of all entries in 'entries' that are in the same cluster as entry.
 	 * @param {DiagramEntry} entry
 	 * @param {DiagramEntry[]} entries
 	 * @return {DiagramEntry[]}
 	 */
-	_getRelated(entry, entries) {
-		let related = [ entry ];
+	_getCluster(entry, entries) {
+		let cluster = [ entry ];
 
 		//Add splits
-		related = related.concat(this._findEntriesByValue("split", entry.id, entries));
+		cluster = cluster.concat(this._findEntriesByValue("split", entry.id, entries));
 		
 		//Add merges, but exclude these circumstances:
 		//1. This entry split from the merging entry (break the loop)
 		//2. The merging entry merges at the start of this one
 		//		(more like a predecessor - treat the relationship the other way around)
-		related = related.concat(this._findEntriesByValue("merge", entry.id, entries).filter(m => entry.split !== m.id && m.end !== entry.start));
+		cluster = cluster.concat(this._findEntriesByValue("merge", entry.id, entries).filter(m => entry.split !== m.id && m.end !== entry.start));
 		
 		//Add entries to which this merges if they only start at that point (inverse of 2. above)
-		related = related.concat(this._findEntriesByValue("id", entry.merge, entries).filter( e => e.start == entry.end))
+		cluster = cluster.concat(this._findEntriesByValue("id", entry.merge, entries).filter( e => e.start == entry.end))
 		
-		return related;
+		return cluster;
 	}
 	
 	/**
@@ -462,14 +466,14 @@ class DiagramPositioner {
 	 * @param {DiagramEntry} entry
 	 * @return {number}
 	 */
-	_shuntRelatedEntries(row, count, entry) {
+	_shuntClusterEntries(row, count, entry) {
 		if (count === 0) return row;
 		const insert = Array.from(Array(count), () => new Array(this._xLength).fill(false));
 		
 		entry.grid.splice(row, 0, ...insert);
 
 		//Move the entries (if they have a row calculated for this group).
-		for (const e of entry.related.filter( e => e.rowTemp || e.relativeRows )) {
+		for (const e of entry.cluster.filter( e => e.rowTemp || e.relativeRows )) {
 			
 			if (e.rowTemp === undefined && e.relativeRows.hasOwnProperty(entry.id)) e.rowTemp = e.relativeRows[entry.id].row;
 			if ( e.rowTemp >= row) e.rowTemp = e.rowTemp + count;
@@ -505,7 +509,7 @@ class DiagramPositioner {
 	 * @param {number} row
 	 * @param {DiagramEntry} entry
 	 */
-	_assignRelatedRow(row, entry) {
+	_assignClusterRow(row, entry) {
 		entry.rowTemp = row;
 		entry.grid = this._blockGridRow(row, this._yearToGrid(entry.start), this._yearToGrid(entry.end), entry.grid);
 	}
@@ -542,17 +546,17 @@ class DiagramPositioner {
 	 */
 	
 	/**
-	 * See if there is a place in the master grid where the related grid of the entry can fit.
-	 * If the master grid isn't yet as large as the related grid, it will be expanded before checking.
+	 * See if there is a place in the master grid where the cluster grid of the entry can fit.
+	 * If the master grid isn't yet as large as the cluster grid, it will be expanded before checking.
 	 * If 'move' is specified, check if it would fit when existing row positions are moved by that number.
 	 * @param {DiagramEntry} entry
 	 * @param {number} [move]
 	 * @return {GridCheck}
 	 */
-	_fitRelated(entry) {
+	_fitCluster(entry) {
 		let log = false;
 		if (entry.id == "C") log = true;
-		if (log) console.log(`Group grid: ${this._gridString(entry.grid)}`)
+		if (log) console.log(`Cluster grid: ${this._gridString(entry.grid)}`)
 		if (log) console.log(`Master grid: ${this._gridString(this._grid)}`)
 		
 		//If the master grid is too small, expand it
@@ -561,7 +565,7 @@ class DiagramPositioner {
 		}
 				
 		//If some entries already have a row set, then we don't need to look in the master grid for that space.
-		for(const a of entry.related.filter(b => b.row)) {
+		for(const a of entry.cluster.filter(b => b.row)) {
 			this._freeGridRow(a.relativeRows[entry.id].row, this._yearToGrid(a.start), this._yearToGrid(a.end), entry.grid);
 		}
 		
@@ -588,21 +592,21 @@ class DiagramPositioner {
 		
 		if (log) console.log(r);
 		
-		//Block the related grid again so it's preserved.
-		for(const a of entry.related.filter(b => b.row)) {
+		//Block the cluster grid again so it's preserved.
+		for(const a of entry.cluster.filter(b => b.row)) {
 			this._blockGridRow(a.relativeRows[entry.id].row, this._yearToGrid(a.start), this._yearToGrid(a.end), entry.grid);
 		}
 		return r;
 	}
 	
 	/**
-	 * Force a space into the master grid for this entry's related grid.
+	 * Force a space into the master grid for this entry's cluster grid.
 	 * If row isn't specified, the entry.row property will be used.
 	 * @param {DiagramEntry} entry
 	 * @param {number} row The row at which to insert the group - this is the master entry row, not necessarily the 1st
 	 * @return {GridCheck}
 	 */
-	_forceRelated(entry, row) {
+	_forceCluster(entry, row) {
 		if (row === undefined && !entry.row) throw new Error(`Cannot force position without a row: ${entry.id}`);
 		if (row === undefined) row = entry.row;
 
@@ -617,20 +621,20 @@ class DiagramPositioner {
 		}
 		
 		//Then the rows before the master
-		for (const e of entry.related.filter(e => e.relativeRows[entry.id].row < entry.relativeRows[entry.id].row)) {
+		for (const e of entry.cluster.filter(e => e.relativeRows[entry.id].row < entry.relativeRows[entry.id].row)) {
 			const absRow = e.relativeRows[entry.id].row*1 + diff*1;
 			const moved = this._freePosition(absRow, e);
 			console.log(moved);
 		}
 		
 		//Finally, the rows after
-		for (const e of entry.related.filter(e => e.relativeRows[entry.id].row > entry.relativeRows[entry.id].row)) {
+		for (const e of entry.cluster.filter(e => e.relativeRows[entry.id].row > entry.relativeRows[entry.id].row)) {
 			const absRow = e.relativeRows[entry.id].row*1 + diff*1;
 			const moved = this._freePosition(absRow, e);
 			console.log(moved);
 		}
 		
-		this._adjustRelated(entry);
+		this._adjustCluster(entry);
 		
 		//The GridCheck object sends the first row for the grid, not the master row we've been working from
 		row = row - entry.relativeRows[entry.id].row;
@@ -650,11 +654,11 @@ class DiagramPositioner {
 	}
 	
 	/**
-	 * Check the rows assigned for the entry's related group, and see if a space closer to their preferred target is free.
+	 * Check the rows assigned for the entry's cluster, and see if a space closer to their preferred target is free.
 	 * @param {DiagramEntry} entry
 	 */
-	_adjustRelated(entry) {
-		for (const e of entry.related.filter(e => e !== entry.id)) {
+	_adjustCluster(entry) {
+		for (const e of entry.cluster.filter(e => e !== entry.id)) {
 			//Check if the entry would prefer to be moved up
 			const r = this._findBetterRelativePosition(e, entry.id);
 			if (r) {
@@ -667,7 +671,7 @@ class DiagramPositioner {
 	}
 	
 	/**
-	 * Return a new row for the given entry if a preferable one in relation to all its groups is available.
+	 * Return a new row for the given entry if a preferable one in relation to all of its clusters is available.
 	 * @param {DiagramEntry} entry
 	 * @return {number|false}
 	 */
