@@ -54,12 +54,46 @@ class Diagram {
 	 * @param {string} [container] - The ID of the container element for the diagram.
 	 * @param {DiagramConfig} [config] - Configuration object for the diagram. Entirely optional.
 	 */
-	constructor(container, config = {}) {		
+	constructor(container, config = {}) {
 		this._config = this._makeConfig(config);
-		this._applyCSSProperties();
+		
+		
 		this._container = document.getElementById(container);
-		this._entries = document.querySelectorAll("#" + container + " > " + this._config.entrySelector+":not(.timeline-exclude):not(.timeline-block)");
-		this._blocks = document.querySelectorAll(".timeline-block");
+		this._entries = this._container.querySelectorAll("#" + container + " > " + this._config.entrySelector + ":not(.timeline-exclude)");
+		
+		this._prepareEntries();
+	}
+	
+	/**
+	 * Prepare all entries with additional inferred data attributes.
+	 * @protected
+	 */
+	_prepareEntries() {
+		let i = 1;
+		for (const entry of this._entries) {
+			
+			//Set IDs on blocks for convenience
+			if (entry.classList.contains("timeline-block")) {
+				entry.id = "block-" + i;
+				entry.dataset.block = true;
+				i++;
+			} else {
+				entry.classList.add("entry");
+				entry.dataset.entry = true;
+			}
+
+			//Start with either current or default, then modify if needed below
+			entry.dataset.end = ( entry.dataset.end ? entry.dataset.end : this._config.yearEnd );
+			if (entry.dataset.become) {
+				entry.dataset.end = parseInt(document.getElementById(entry.dataset.become).dataset.start);
+			}
+			if (entry.dataset.fork) {
+				const forks = entry.dataset.fork.split(" ");
+				entry.dataset.end = Math.max(document.getElementById(forks[0]).dataset.start, document.getElementById(forks[1]).dataset.start);
+			}
+			
+// 			entry.dataset.xLength = parseInt(entry.dataset.end) - parseInt(entry.dataset.start);
+		}
 	}
 	
 	/**
@@ -76,7 +110,6 @@ class Diagram {
 		return c;
 	}
 	
-		
 	/**
 	 * Set a single config property.
 	 * @protected
@@ -87,13 +120,16 @@ class Diagram {
 		this._config[prop] = value;
 	}
 		
-	/** Create the timeline.
-	 * This should be called after creating a class instance.
+	/** 
+	 * Create the timeline.
+	 * This should be called after instantiating a Diagram.
 	 * @public
 	 * @return {HTMLElement}
 	 */
 	create() {
-		this._setup();
+		this._positioner = new DiagramPositioner(this._entries, this._config.yearStart, this._config.yearEnd);
+		this._setConfigProp("rows", this._positioner.rows);
+		this._setupCSS();
 		this._draw();
 		this._addDates();
 		if (this._config.guides === true) {
@@ -102,72 +138,35 @@ class Diagram {
 		return this._container;
 	}
 	
-	/** Setup necessary CSS classes and data for entries.
+	/** 
+	 * Setup CSS classes and data for entries and apply root CSS vars.
+	 * Note: config.rows must be set first (i.e. if using DiagramPositioner, the calculation has to be finished.)
 	 * @protected
 	 */
-	_setup() {
-		this._prepareEntries();
-		const dp = this._createPositioner();
-		const rows = dp.setRows(this._entries);
-		this._setConfigProp("rows", rows);
+	_setupCSS() {
+		
+		const root = document.documentElement;
+		root.style.setProperty('--timeline-year-width', this._config.yearWidth + "px");
+		root.style.setProperty('--timeline-row-height', this._config.rowHeight + "px");
+		root.style.setProperty('--timeline-box-width', this._config.boxWidth + "px");
+		root.style.setProperty('--timeline-box-height', this._config.boxHeight + "px");
+		root.style.setProperty('--timeline-box-width-min', this._config.boxHeight + "px");
+		root.style.setProperty('--timeline-padding', this._config.padding + "px");
+		root.style.setProperty('--timeline-stroke-colour', this._config.strokeColour);
 		
 		//Set up container
 		this._container.classList.add("timeline-container");
 		this._container.style.height = (this._config.rows + 2) * this._config.rowHeight + "px"; //Add 2 rows to total for top and bottom space
 		this._container.style.width = (this._config.yearEnd + 1 - this._config.yearStart) * this._config.yearWidth + "px"; //Add 1 year for padding
 	
-		this._setEntries();
-	}
-	
-	/** Prepare all entries with initial classes and data
-	 * @protected
-	 */
-	_prepareEntries() {
-		for (const entry of this._entries) {
-			entry.classList.add("entry");
-			entry.dataset.end = this._calcEnd(entry);
-		}
-	}
-	
-	/**
-	 * Instantiate a DiagramPositioner object and pass any initial position _blocks
-	 * @protected
-	 * @return {DiagramPositioner}
-	 */
-	_createPositioner() {
-		const years = this._config.yearEnd - this._config.yearStart;	
-		let rows = 1;
-		
-		//Find the highest manual row number (selector is for entries and any .timeline-block elements)
-		for (const entry of this._container.querySelectorAll(this._config.entrySelector+":not(.timeline-exclude), .timeline-block")) {
-			if (parseInt(entry.dataset.row) > rows) {
-				rows = parseInt(entry.dataset.row);
-			}
-		}
-		
-		const dp = new DiagramPositioner(years, this._config.yearStart, rows);
-		dp.applyBlocks(this._blocks);
-		this._setConfigProp("rows", dp.rows);
-		
-		return dp;
-	}
-	
-	/** Set the row for all entries
-	 * @protected
-	 * @param {DiagramPositioner} dp
-	 */
-	_setRows(dp) {
-		for (const entry of this._entries) {
-			dp.setEntryRow(entry);
-		}
-		this._setConfigProp("rows", dp.rows);
+		this._setEntriesPosition();
 	}
 	
 	/**
 	 * Set styles for each entry to position them according to calculated row and entry size
 	 * @protected
 	 */
-	_setEntries() {
+	_setEntriesPosition() {
 		//Position entries and add additional data
 		for (const entry of this._entries) {
 			entry.style.left = this._yearToWidth(entry.dataset.start) + "px";
@@ -185,10 +184,12 @@ class Diagram {
 		//Adjust spacing for entries that overlap
 		//Accomodates entries that are both the same year
 		//Width needs to be known before nudging, so this has to be separated
-		for (const entry of this._container.querySelectorAll(this._config.entrySelector + '[data-become]')) {
-			if (entry.dataset.start == document.getElementById(entry.dataset.become).dataset.start) {
-				entry.style.left = parseFloat(entry.style.left) - this._config.boxMinWidth/2 + "px";
-				document.getElementById(entry.dataset.become).style.left = parseFloat(document.getElementById(entry.dataset.become).style.left) + this._config.boxMinWidth/2 + "px";
+		for (const entry of [...this._entries].filter(e => e.dataset.become)) {
+			const become = document.getElementById(entry.dataset.become);
+			
+			if (entry.dataset.start == become.dataset.start) {
+				entry.style.left = parseInt(entry.style.left) - this._config.boxMinWidth/2 + "px";
+				become.style.left = parseInt(become.style.left) + this._config.boxMinWidth/2 + "px";
 			}
 		}
 	}
@@ -244,33 +245,39 @@ class Diagram {
 	 * @protected
 	 */
 	_draw() {
-		for (const entry of this._entries) {
-			
+		for (const entry of [...this._entries].filter(e => !e.classList.contains("timeline-block"))) {
 			const colour = (entry.dataset.colour ? entry.dataset.colour : this._config.strokeColour);
 			const dasharray = (entry.dataset.irregular == "true" ? this._config.irregularDashes : "");
 			
+			if(!entry.id) throw new Error (`Missing id on ${entry.text}`);
+			try {
+				this._yearToWidth(entry.dataset.end)
+			} catch {
+				console.log(`${entry.id} error on draw - bad end year`);
+			}
+			
 			let endMarker = "";
 			let cssClass = "end";
-			let start = this._getJoinCoords(entry, "right");
+			let start = this._getJoinCoords(entry.id, "right");
 			let end = {
 				x: this._yearToWidth(entry.dataset.end),
 				y: start.y
 			};
 			
 			//Ends without joining another entry
-			if (!entry.dataset.hasOwnProperty("merge") &&
-				!entry.dataset.hasOwnProperty("fork") &&
-				!entry.dataset.hasOwnProperty("become")
+			if (!entry.dataset.merge &&
+				!entry.dataset.fork &&
+				!entry.dataset.become
 			) {
 				endMarker = (entry.dataset.endEstimate ? "dots" : "circle");
 			}
 			
-			if (entry.dataset.hasOwnProperty("become")) { 
-				end = this._getJoinCoords(document.getElementById(entry.dataset.become), 'left');
+			if (entry.dataset.become) { 
+				end = this._getJoinCoords(entry.dataset.become, 'left');
 				cssClass = "become";
 			}
 			
-			if (entry.dataset.hasOwnProperty("merge")) {
+			if (entry.dataset.merge) {
 				//Special case of one year length and then merging. We need to bump the merge point forward by 1 year to meet an 'end of year' point. Otherwise, it's indistinguishable from a split.
 				if (entry.dataset.start == entry.dataset.end) {
 					end.x += this._config.yearWidth;
@@ -278,7 +285,7 @@ class Diagram {
 				
 				const mergePoint = {
 					x: end.x,
-					y: this._getYCentre(document.getElementById(entry.dataset.merge))
+					y: this._getYCentre(entry.dataset.merge)
 				}
 				
 				//Merged entry's line ends a bit earlier, so as to go diagonally to meet the other entry at the year mark.
@@ -296,13 +303,13 @@ class Diagram {
 				this._container.append(line);
 			}
 
-			if (entry.dataset.hasOwnProperty("split")) {
+			if (entry.dataset.split) {
 				this._drawSplit(entry, colour);
 			}
-			if (entry.dataset.hasOwnProperty("fork")) {
+			if (entry.dataset.fork) {
  				this._drawForks(entry, colour);
 			}
-			if (entry.dataset.hasOwnProperty("links")) {
+			if (entry.dataset.links) {
 				this._drawLinks(entry, colour);
 			}
 		}
@@ -324,9 +331,9 @@ class Diagram {
 		
 		const start = {
 			x: this._yearToWidth(entry.dataset.start),
-			y: this._getYCentre(source)
+			y: this._getYCentre(source.id)
 		}
-		const end = this._getJoinCoords(entry, direction);
+		const end = this._getJoinCoords(entry.id, direction);
 		
 		const line = SvgConnector.draw( { start: start, end: end, stroke: this._config.strokeWidth, colour: colour });
 		
@@ -346,15 +353,15 @@ class Diagram {
 
 		const start = {
 			x: this._yearToWidth(forkYear),
-			y: this._getYCentre(entry)
+			y: this._getYCentre(entry.id)
 		}
 		const end1 = {
 			x: this._yearToWidth(forkYear+1),
-			y: this._getYCentre(document.getElementById(forks[0]))
+			y: this._getYCentre(forks[0])
 		}
 		const end2 = {
 			x: this._yearToWidth(forkYear+1),
-			y: this._getYCentre(document.getElementById(forks[1]))
+			y: this._getYCentre(forks[1])
 		}
 		
 		const fork1 = SvgConnector.draw({ start: start, end: end1, stroke: this._config.strokeWidth, colour: colour });
@@ -395,32 +402,32 @@ class Diagram {
 			
 			//Find the direction of the link
 			if (eRow === tRow && entry.dataset.start < target.dataset.start) {
-				indices["right"] = indices["right"]+1;
+				indices["right"] = indices["right"] + 1;
 				sourceSide = "right";
 				targetSide = "left";
 			}
 			if (eRow === tRow && entry.dataset.start > target.dataset.start) {
-				indices["left"] = indices["left"]+1;
+				indices["left"] = indices["left"] + 1;
 				sourceSide = "left";
 				targetSide = "right";
 			}
 			if (eRow > tRow) {
-				indices["top"] = indices["top"]+1;
+				indices["top"] = indices["top"] + 1;
 				sourceSide = "top";
 				targetSide = "bottom";
 			}
 			if (eRow < tRow) {
-				indices["bottom"] = indices["bottom"]+1;
+				indices["bottom"] = indices["bottom"] + 1;
 				sourceSide = "bottom";
 				targetSide = "top";
 			}
 			
-			start = this._getJoinCoords(entry, sourceSide, indices[sourceSide]);
+			start = this._getJoinCoords(entry.id, sourceSide, indices[sourceSide]);
 			
 			//Start with vertical line to line case
 			end = {
 				x: start.x,
-				y: this._getYCentre(target)
+				y: this._getYCentre(target.id)
 			}
 			
 			//If the target doesn't overlap in time with the source (can't be after, as link would be vice versa then)
@@ -430,7 +437,7 @@ class Diagram {
 			
 			//If the year is the same, link the entry box, not the line
 			if(entry.dataset.start == target.dataset.start) {
-				end = this._getJoinCoords(target, targetSide);
+				end = this._getJoinCoords(target.id, targetSide);
 			}
 			
 			const connector = SvgConnector.draw({
@@ -445,40 +452,62 @@ class Diagram {
 			this._container.append(connector);
 		}
 	}
-	
-	/** Add CSS properties to document root, based on config.
-	 * @protected
-	 */
-	_applyCSSProperties() {
-		const root = document.documentElement;
-		root.style.setProperty('--timeline-year-width', this._config.yearWidth + "px");
-		root.style.setProperty('--timeline-row-height', this._config.rowHeight + "px");
-		root.style.setProperty('--timeline-box-width', this._config.boxWidth + "px");
-		root.style.setProperty('--timeline-box-height', this._config.boxHeight + "px");
-		root.style.setProperty('--timeline-box-width-min', this._config.boxHeight + "px");
-		root.style.setProperty('--timeline-padding', this._config.padding + "px");
-		root.style.setProperty('--timeline-stroke-colour', this._config.strokeColour);
 		
+	/**
+	 * Check if an entry should be small on the graph (too brief to fit full box size)
+	 * @protected
+	 * @param {HTMLElement} entry
+	 * @return {boolean}
+	 */
+	_checkSmallEntry(entry) {
+		//Entries which start and end in the same year should have a length of 1
+		const length = ( (entry.dataset.end - entry.dataset.start) > 0 ? entry.dataset.end - entry.dataset.start : 1 );
+		
+		if (length < (this._config.boxWidth/this._config.yearWidth)) {
+			return true;
+		} else {
+			return false;
+		}
 	}
 	
 	/**
-	 * Find and return the coordinates where lines should join an element on each side.
-	 * Where multiple lines are meeting an element on one side, specifying the offest number
-	 * allows these to join at different points.
+	 * Get the X-axis centre of the element with the given ID.
 	 * @protected
-	 * @param {HTMLElement} entry
-	 * @param {string} side - Must be "top", "bottom", "left" or "right"
-	 * @param {number} offset - the number of steps to offset the point (use if multiple lines join an entry on the same side).
-	 * @return {object}
+	 * @param {string} id
+	 * @return {number}
 	 */
-	_getJoinCoords(entry, side, offset = 0) {
-		
+	_getXCentre(id) {
+		const node = document.getElementById(id);
+		return parseFloat(node.style.left) + (this._config.boxWidth/2);
+	}
+	
+	/**
+	 * Get the Y-axis centre of the element with the given ID.
+	 * @protected
+	 * @param {string} id
+	 * @return {number}
+	 */
+	_getYCentre(id) {
+		const node = document.getElementById(id);
+		if (node == null) { console.log(`ID:${id} got null node.`) }
+		return parseFloat(node.style.top) + (this._config.boxHeight/2);
+	}
+	
+	/**
+	 * Get co-ordinates at which to join a line to the element based on the preferred side.
+	 * An offset can be supplied. This will move the returned co-ords to accomodate other lines linking to the same side.
+	 * @param {string} id
+	 * @param {("left"|"right"|"top"|"bottom")} side
+	 * @param {number} [offset] - The number of positions offset the returned co-ordinates should be
+	 * @return {{x: number, y: number}}
+	 */
+	_getJoinCoords(id, side, offset = 0) {
 		const offsetIncrement = 5;
+		const node = document.getElementById(id);
+		const status = window.getComputedStyle(node);
 		
-		const status = window.getComputedStyle(entry);
-		
-		const l = parseFloat(entry.style.left);
-		const t = parseFloat(entry.style.top);
+		const l = parseFloat(node.style.left);
+		const t = parseFloat(node.style.top);
 		const w = parseFloat(status.getPropertyValue('width'));
 		const h = parseFloat(status.getPropertyValue('height'));
 		
@@ -508,79 +537,18 @@ class Diagram {
 				};
 				break;
 			default:
-				throw `Invalid element side specified: Called with ${side}. Entry: ${entry}`;
+				throw `Invalid element side specified: Called with ${side}. Entry: ${id}`;
 		}
 	}
-	
-	/**
-	 * Return the end date for an entry, whether explicitly set or not.
-	 * @protected
-	 * @param {HTMLElement} entry
-	 * @return {number}
-	 */
-	_calcEnd(entry) {
-		if (entry.dataset.end) {
-			return parseInt(entry.dataset.end);
-		}
 		
-		if (entry.dataset.become) {
-			return parseInt(document.getElementById(entry.dataset.become).dataset.start);
-		}
-		
-		if (entry.dataset.fork && !entry.dataset.end) {
-			const forks = entry.dataset.fork.split(" ");
-			const f1 = document.getElementById(forks[0]);
-			const f2 = document.getElementById(forks[1]);
-			return parseInt(Math.max(f1.dataset.start, f2.dataset.start));
-		}
-		
-		return parseInt(this._config.yearEnd);
-	}
-
-	/**
-	 * Check if an entry should be small on the graph (too brief to fit full box size)
-	 * @protected
-	 * @param {HTMLElement} entry
-	 * @return {boolean}
-	 */
-	_checkSmallEntry(entry) {
-		const start = entry.dataset.start;
-		const end = entry.dataset.end;
-		
-		if ((end - start) < (this._config.boxWidth/this._config.yearWidth)) {
-			return true;
-		} else {
-			return false;
-		}
-	}
-	
-	/**
-	 * Get the X-axis centre of an entry box.
-	 * @protected
-	 * @param {HTMLElement} entry
-	 * @return {number}
-	 */
-	_getXCentre(entry) {
-		return parseFloat(entry.style.left) + (this._config.boxWidth/2);
-	}
-	
-	/**
-	 * Get the Y-axis centre of an entry box.
-	 * @protected
-	 * @param {HTMLElement} entry
-	 * @return {number}
-	 */
-	_getYCentre(entry) {
-		return parseFloat(entry.style.top) + (this._config.boxHeight/2);
-	}
-	
 	/**
 	 * Get the width in px of the diagram at the point sepecified by a particular year.
-	 * @param {number} year
 	 * @protected
+	 * @param {number} year
 	 * @return {number}
 	 */
 	_yearToWidth(year) {
+		if (isNaN(year)) throw new Error(`Non-numerical year value received: ${year}`);
 		return parseInt((year - this._config.yearStart) * this._config.yearWidth);
 	}
 }

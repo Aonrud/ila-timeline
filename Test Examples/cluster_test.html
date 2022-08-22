@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Test</title>
+		<meta charset="utf-8" />
+		<link href="../dist/timeline.min.css" rel="stylesheet" type="text/css" />
+	</head>
+	<body>
+		<div id="diagram">
+			<div id="A" data-start="1975" data-end="1982">A</div>
+			<div id="B" data-start="1971" data-merge="A" data-end="1978">B</div>
+			
+			<div id="C" data-start="1980" data-become="D">C Independent Cluster</div>
+			<div id="D" data-start="1985" data-become="E">D</div>
+			<div id="E" data-start="1990">E</div>
+			
+			<div id="F" data-start="1988" data-split="D" data-colour="#395">F Splitting Entry</div>
+			
+			<div id="G" data-start="1973"  data-split="B" data-end="1976" data-fork="H I">G Forking Entry</div>
+			<div id="H" data-start="1976" data-end="1995" data-irregular="true">H Irregular Entry</div>
+			<div id="I" data-start="1976"  data-end="1982" data-end-estimate="true">I End Estimated</div>
+			
+			<div id="J" data-start="1990" data-end="1995" data-split="H" data-merge="R">J Weird Fork</div>
+<!-- 			<div id="K" data-start="1990" data-end="1993">K Overlapping Entry</div> -->
+			
+<!--			<div id="L" data-start="1988" data-split="D" data-end="1995">L</div>
+			
+			<div id="M" data-start="1985" data-split="H" data-end="1985">M Single Year Entry</div>
+			
+			<div id="N" data-start="2000" data-end="2000" data-merge="E">N Single Year Merging Entry</div>-->
+			
+			<div id="O" data-start="1995" data-end="2005" data-merge="P" data-split="J">O Merges With Own Split</div>
+			<div id="P" data-start="1999" data-end="2010" data-split="O">P Splits and is Merged With</div>
+			
+<!--			<div id="Q" data-start="2008" data-split="P" data-end="2015" data-merge="E" data-links="N F" data-irregular="true" data-colour="#5aa">Q Kitchen Sink</div>-->
+			
+			<div id="R" data-start="1980" >R</div>
+			<div id="S" data-start="1983" data-split="R">S</div>
+			<div id="T" data-start="1972" data-end="1995" data-merge="S">T</div>
+<!-- 			<div id="U" data-start="1988" data-end="1993" data-split="S" data-merge="S">U</div> -->
+			
+<!--			<div id="V" data-start="1990" data-split="T">V</div>
+			<div id="W" data-start="2000" data-split="V">W</div>
+			<div id="X" data-start="2002" data-split="V" data-become="Y">X</div>
+			<div id="Y" data-start="2008" data-become="Z">Y</div>
+			<div id="Z" data-start="2012" data-end="2016" data-end-estimate="true">Z</div>-->
+
+		</div>
+		<script src="../dist/timeline.js"></script>
+		<script>
+			const t = new Timeline("diagram", { 
+				yearStart: 1970,
+			});
+			t.create();
+		</script>
+	</body>
+</html>

@@ -3,7 +3,7 @@
 	<head>
 		<title>Test</title>
 		<meta charset="utf-8" />
-		<link href="dist/timeline.min.css" rel="stylesheet" type="text/css" />
+		<link href="../dist/timeline.min.css" rel="stylesheet" type="text/css" />
 	</head>
 	<body>
 		<div id="diagram">
@@ -25,7 +25,7 @@
 			<div id="P" data-start="1999" data-end="2010" data-split="O">P Splits and is Merged With</div>
 			<div id="Q" data-start="2008" data-split="P" data-end="2015" data-merge="E" data-links="N F" data-irregular="true" data-colour="#5aa">Q Kitchen Sink</div>
 			<div id="R" data-start="1975" data-end="1985" data-row="6">R has a block to a link</div>
-			<div id="S" data-start="1995" data-links="R" data-row="6">S is linked to R with the gap blocked</div>
+<!-- 			<div id="S" data-start="1995" data-links="R" data-row="6">S is linked to R with the gap blocked</div> -->
 			<div id="T" data-start="1987" data-end="1990">T could fit that gap</div>
 			<div class="timeline-block" data-find="R" data-start="1985" data-end="1995" />
 			
@@ -38,7 +38,7 @@
 			-->
 			<div class="timeline-block" data-start="1970" data-end="1990" data-row="8"></div>
 		</div>
-		<script src="dist/timeline.js"></script>
+		<script src="../dist/timeline.js"></script>
 		<script>
 			const t = new Timeline("diagram", { yearStart: 1970 });
 			t.create();
