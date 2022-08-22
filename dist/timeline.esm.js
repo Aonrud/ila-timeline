@@ -292,6 +292,7 @@ class SvgConnector {
  * @property {EntryID} [merge]
  * @property {EntryID} [split]
  * @property {EntryID[]} [links]
+ * @property {string} [group]
  * @property {DiagramEntry[]} [cluster]
  * @property {{EntryID: { row: number, relative: number, actual: number}}} [relativeRows]
  * @property {number} [rowTemp]
@@ -566,9 +567,13 @@ class DiagramPositioner {
 	 */
 	
 	_readEntries(nodes) {
+		//Dataset properties we're interested in - others can be ignored.
+		const props = [ "start", "end", "become", "split", "merge", "links", "row", "group" ];
+		
 		let entries = [...nodes].map( e => { 
 			let o = { "id": e.id };
 			for (const d in e.dataset) {
+				if (!props.includes(d)) continue;
 				let val = ( e.dataset[d].split(" ").length > 1 ? e.dataset[d].split(" ") : e.dataset[d] );
 				if (!isNaN(val)) val = parseInt(val);
 				o[d] = val;
