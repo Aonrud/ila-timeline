@@ -1,18 +1,18 @@
 lockfileVersion: 5.4
 
 specifiers:
-  '@panzoom/panzoom': ^4.4.1
+  '@panzoom/panzoom': ^4.5.1
   '@rollup/plugin-terser': ^0.4.0
   npm-run-all: ^4.1.5
-  rollup: ^2.53.3
+  rollup: ^3.18.0
 
 optionalDependencies:
-  '@panzoom/panzoom': 4.4.4
+  '@panzoom/panzoom': 4.5.1
 
 devDependencies:
-  '@rollup/plugin-terser': 0.4.0_rollup@2.70.1
+  '@rollup/plugin-terser': 0.4.0_rollup@3.18.0
   npm-run-all: 4.1.5
-  rollup: 2.70.1
+  rollup: 3.18.0
 
 packages:
 
@@ -53,13 +53,12 @@ packages:
       '@jridgewell/sourcemap-codec': 1.4.14
     dev: true
 
-  /@panzoom/panzoom/4.4.4:
-    resolution: {integrity: sha512-ek82o3JCc/w/v3Iqu1NpwT2XBc5m54HmjCt6xKa1yFd+RKk429cwC6hj8vpjIKiRgTfOZs13RshFpKL8YzcxyA==}
+  /@panzoom/panzoom/4.5.1:
+    resolution: {integrity: sha512-QOr/t7314XTwgAUDazR+RDcTAWSbkpjDnZJddd9f56jSUA8ptUsyDblAb+sp/O5O1o5Fiu9KpWxVHKuhGUgp5w==}
     requiresBuild: true
-    dev: false
     optional: true
 
-  /@rollup/plugin-terser/0.4.0_rollup@2.70.1:
+  /@rollup/plugin-terser/0.4.0_rollup@3.18.0:
     resolution: {integrity: sha512-Ipcf3LPNerey1q9ZMjiaWHlNPEHNU/B5/uh9zXLltfEQ1lVSLLeZSgAtTPWGyw8Ip1guOeq+mDtdOlEj/wNxQw==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
@@ -68,7 +67,7 @@ packages:
       rollup:
         optional: true
     dependencies:
-      rollup: 2.70.1
+      rollup: 3.18.0
       serialize-javascript: 6.0.1
       smob: 0.0.6
       terser: 5.16.5
@@ -491,9 +490,9 @@ packages:
       supports-preserve-symlinks-flag: 1.0.0
     dev: true
 
-  /rollup/2.70.1:
-    resolution: {integrity: sha512-CRYsI5EuzLbXdxC6RnYhOuRdtz4bhejPMSWjsFLfVM/7w/85n2szZv6yExqUXsBdz5KT8eoubeyDUDjhLHEslA==}
-    engines: {node: '>=10.0.0'}
+  /rollup/3.18.0:
+    resolution: {integrity: sha512-J8C6VfEBjkvYPESMQYxKHxNOh4A5a3FlP+0BETGo34HEcE4eTlgCrO2+eWzlu2a/sHs2QUkZco+wscH7jhhgWg==}
+    engines: {node: '>=14.18.0', npm: '>=8.0.0'}
     hasBin: true
     optionalDependencies:
       fsevents: 2.3.2
